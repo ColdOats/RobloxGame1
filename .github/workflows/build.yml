@@ -1,0 +1,17 @@
+name: Build Roblox place
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - run: bash scripts/build.sh
+      - uses: actions/upload-artifact@v6
+        with:
+          name: CrystalMiningSimulator
+          path: dist/CrystalMiningSimulator.rbxl
+          if-no-files-found: error

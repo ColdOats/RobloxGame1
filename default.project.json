@@ -1,0 +1,1 @@
+{"name":"CrystalMiningSimulator","tree":{"$className":"DataModel","ReplicatedStorage":{"MiningConfig":{"$path":"src/shared/Config.lua"}},"ServerScriptService":{"MiningServer":{"$path":"src/server/Main.server.lua"}},"StarterPlayer":{"StarterPlayerScripts":{"MiningClient":{"$path":"src/client/Main.client.lua"}}}}}
