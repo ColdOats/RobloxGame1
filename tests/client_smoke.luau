@@ -1,0 +1,21 @@
+assert(not body.Visible and collapse.Text == "Open", "The journal should open folded")
+assert(pages[1][1].Size.X == 90, "Phone uses larger tabs")
+assert(string.find(glance.Text, "Bag 0/50", 1, true))
+collapse.Activated:Fire()
+assert(body.Visible and collapse.Text == "Close")
+cameraMock.ViewportSize = Vector2.new(1440, 900)
+cameraMock:GetPropertyChangedSignal("ViewportSize"):Fire()
+assert(body.Visible and pages[1][1].Size.X == 44, "Resizing keeps the current journal state")
+
+local ore = Instance.new("Part")
+mouseMock.Target = ore
+toolMock.Activated:Fire()
+assert(not firedRemote, "Plain parts are not mining targets")
+services.CollectionService:AddTag(ore, "MineableOre")
+toolMock.Activated:Fire()
+assert(firedRemote == "SwingAtOre" and firedTarget == ore)
+services.CollectionService:RemoveTag(ore, "MineableOre")
+firedRemote = nil
+toolMock.Activated:Fire()
+assert(not firedRemote, "Depleted ore should stop accepting clicks")
+print("Client smoke passed: HUD startup, responsive journal, and pickaxe target dispatch.")

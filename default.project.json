@@ -1,1 +1,98 @@
-{"name":"CrystalMiningSimulator","tree":{"$className":"DataModel","ReplicatedStorage":{"MiningConfig":{"$path":"src/shared/Config.lua"}},"ServerScriptService":{"MiningServer":{"$path":"src/server/Main.server.lua"}},"StarterPlayer":{"StarterPlayerScripts":{"MiningClient":{"$path":"src/client/Main.client.lua"}}}}}
+{
+  "name": "CrystalMiningSimulator",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "MiningConfig": {
+        "$path": "src/shared/Config.lua"
+      }
+    },
+    "ServerScriptService": {
+      "MiningServer": {
+        "$path": "src/server/Main.server.lua"
+      },
+      "World": {
+        "$path": "src/server/World.lua"
+      },
+      "Pickaxes": {
+        "$path": "src/server/Pickaxes.lua"
+      },
+      "Premium": {
+        "$path": "src/server/Premium.lua"
+      },
+      "SessionStore": {
+        "$path": "src/server/SessionStore.lua"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "MiningClient": {
+          "$path": "src/client/Main.client.lua"
+        }
+      }
+    },
+    "Workspace": {
+      "MiningStart": {
+        "$className": "Folder",
+        "Meadow Ground": {
+          "$className": "Part",
+          "$properties": {
+            "Anchored": true,
+            "CanCollide": true,
+            "Size": [
+              110,
+              1,
+              100
+            ],
+            "Color": [
+              0.28627450980392155,
+              0.4666666666666667,
+              0.28627450980392155
+            ],
+            "Material": "Grass",
+            "CFrame": [
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        "Mining Spawn": {
+          "$className": "SpawnLocation",
+          "$properties": {
+            "Anchored": true,
+            "Neutral": true,
+            "Size": [
+              8,
+              1,
+              8
+            ],
+            "CFrame": [
+              0,
+              1,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1,
+              0,
+              0,
+              0,
+              1
+            ]
+          }
+        }
+      }
+    }
+  }
+}

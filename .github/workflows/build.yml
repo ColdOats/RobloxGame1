@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
-      - run: bash scripts/build.sh
+      - run: bash scripts/check-alpha.sh
       - uses: actions/upload-artifact@v6
         with:
           name: CrystalMiningSimulator
