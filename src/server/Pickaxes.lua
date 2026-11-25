@@ -94,7 +94,7 @@ function Pickaxes.sync(player, pick, tier, finish)
 
     local tool = Instance.new("Tool")
     tool.Name = pick.Name .. " Pickaxe"
-    tool.ToolTip = pick.Power .. " mining power"
+    tool.ToolTip = string.format("%d mining power • %.2fs between swings", pick.Power, pick.SwingCooldown)
     tool.CanBeDropped = false
     tool.Grip = CFrame.new(0, -.55, 0) * CFrame.Angles(math.rad(15), 0, 0)
     tool:SetAttribute("MiningPickaxe", true)

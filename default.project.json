@@ -5,6 +5,12 @@
     "ReplicatedStorage": {
       "MiningConfig": {
         "$path": "src/shared/Config.lua"
+      },
+      "MiningAudio": {
+        "$path": "src/client/MiningAudio.lua"
+      },
+      "BiomeView": {
+        "$path": "src/client/BiomeView.lua"
       }
     },
     "ServerScriptService": {
@@ -40,16 +46,16 @@
             "Anchored": true,
             "CanCollide": true,
             "Size": [
-              110,
+              180,
               1,
-              100
+              220
             ],
             "Color": [
-              0.28627450980392155,
-              0.4666666666666667,
-              0.28627450980392155
+              0.32941176470588235,
+              0.5490196078431373,
+              0.2627450980392157
             ],
-            "Material": "Grass",
+            "Material": "Plastic",
             "CFrame": [
               0,
               0,
@@ -63,7 +69,8 @@
               0,
               0,
               1
-            ]
+            ],
+            "TopSurface": "Studs"
           }
         },
         "Mining Spawn": {
@@ -89,7 +96,14 @@
               0,
               0,
               1
-            ]
+            ],
+            "Color": [
+              0.8196078431372549,
+              0.8509803921568627,
+              0.8392156862745098
+            ],
+            "Material": "Plastic",
+            "TopSurface": "Studs"
           }
         }
       }

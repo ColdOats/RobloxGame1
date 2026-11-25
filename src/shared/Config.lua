@@ -1,23 +1,27 @@
 local config = {
     Zones = {
         { Name = "Meadow", Ore = "Quartz", Cost = 0, Color = Color3.fromRGB(53, 220, 190), Value = 2, Health = 3,
-            Landmark = "Old Survey Marker", DiscoveryReward = 20 },
+            Landmark = "Old Survey Marker", DiscoveryReward = 20, OreRespawn = 10 },
         { Name = "Amethyst Cavern", Ore = "Amethyst", Cost = 250, Color = Color3.fromRGB(161, 85, 255), Value = 8, Health = 6,
-            Landmark = "Echo Chamber", DiscoveryReward = 80 },
+            Landmark = "Echo Chamber", DiscoveryReward = 80, OreRespawn = 12 },
         { Name = "Frozen Peaks", Ore = "Frost Ore", Cost = 1500, Color = Color3.fromRGB(91, 175, 255), Value = 25, Health = 10,
-            Landmark = "Tarn Overlook", DiscoveryReward = 200 },
+            Landmark = "Tarn Overlook", DiscoveryReward = 200, OreRespawn = 14 },
         { Name = "Sunken Ruins", Ore = "Tideglass", Cost = 3500, Color = Color3.fromRGB(84, 233, 182), Value = 42, Health = 16,
-            Landmark = "Tidekeeper Shrine", DiscoveryReward = 450 },
+            Landmark = "Tidekeeper Shrine", DiscoveryReward = 450, OreRespawn = 15 },
         { Name = "Ember Forge", Ore = "Ember Ore", Cost = 8000, Color = Color3.fromRGB(255, 122, 65), Value = 75, Health = 26,
-            Landmark = "Emberheart Beacon", DiscoveryReward = 1000 },
+            Landmark = "Emberheart Beacon", DiscoveryReward = 1000, OreRespawn = 17 },
     },
+    ZoneSpacing = 2800,
+    StarterMineBiome = 0,
+    StarterMineX = -2800,
+    Meadow = { Width = 180, Depth = 220, MineWidthScale = 1.22, MineDepthScale = 1.37 },
     Picks = {
-        { Name = "Starter", Cost = 0, Power = 1 },
-        { Name = "Iron", Cost = 60, Power = 2 },
-        { Name = "Steel", Cost = 250, Power = 4 },
-        { Name = "Crystal", Cost = 1000, Power = 8 },
-        { Name = "Tideglass", Cost = 2800, Power = 13 },
-        { Name = "Embersteel", Cost = 6200, Power = 20 },
+        { Name = "Starter", Cost = 0, Power = 1, SwingCooldown = .75 },
+        { Name = "Iron", Cost = 60, Power = 2, SwingCooldown = .62 },
+        { Name = "Steel", Cost = 250, Power = 4, SwingCooldown = .53 },
+        { Name = "Crystal", Cost = 1000, Power = 8, SwingCooldown = .45 },
+        { Name = "Tideglass", Cost = 2800, Power = 13, SwingCooldown = .38 },
+        { Name = "Embersteel", Cost = 6200, Power = 20, SwingCooldown = .33 },
     },
     Pets = {
         { Name = "Pebble Pup", Weight = 54, Bonus = 1, Color = Color3.fromRGB(172, 149, 121) },
@@ -34,6 +38,10 @@ local config = {
         { Name = "Astral Alloy", Premium = 1, Color = Color3.fromRGB(105, 146, 248) },
         { Name = "Meteor Etch", Premium = 3, Color = Color3.fromRGB(158, 80, 105),
             Accent = Color3.fromRGB(255, 198, 119) },
+        { Name = "Trail Brass", Pass = 1, Color = Color3.fromRGB(166, 108, 68),
+            Accent = Color3.fromRGB(144, 239, 186) },
+        { Name = "Prism Edge", Pass = 2, Color = Color3.fromRGB(112, 101, 183),
+            Accent = Color3.fromRGB(244, 176, 241) },
     },
     Auras = {
         { Name = "Firefly Trail", Weight = 46, Color = Color3.fromRGB(237, 205, 111) },
@@ -48,8 +56,16 @@ local config = {
         { Name = "Prismatic Fieldwork", Specimen = true, Color = Color3.fromRGB(245, 193, 128) },
         { Name = "Dusk Comet", Premium = 4, Color = Color3.fromRGB(163, 132, 255),
             Accent = Color3.fromRGB(255, 171, 125) },
+        { Name = "Lantern Parade", Pass = 1, Color = Color3.fromRGB(255, 208, 104),
+            Accent = Color3.fromRGB(139, 206, 160) },
+        { Name = "Prism Bloom", Pass = 2, Color = Color3.fromRGB(130, 195, 253),
+            Accent = Color3.fromRGB(244, 160, 216) },
     },
-    SurveyorLantern = { Zone = 2, Cost = 24, Range = 45 },
+    SurveyorLantern = { Zone = 2, Cost = 24, Range = 45, Name = "Surveyor’s Lantern", Owned = "SurveyorLantern",
+        Reserve = "AmethystReserve", Benefit = "Nearby rich veins are marked." },
+    FrostSeal = { Zone = 3, Cost = 75, ExtraCapacity = 35, Name = "Frost Satchel Seal", Owned = "FrostSeal",
+        Reserve = "FrostReserve", Benefit = "Your bag holds 35 more crystals." },
+    FirstForgeReward = 20,
     GeodeCompass = { Cost = 450, ExtraSeconds = 20 },
     GeodeHunt = {
         Chain = 3, Window = 45, Limit = 12, Aura = 10,
@@ -115,6 +131,12 @@ local config = {
             { Name = "Quench", Period = 3.2, Low = .24, High = .47 },
         },
     },
+    GamePassSalesEnabled = false,
+    StarshardSalesEnabled = false,
+    GamePasses = {
+        { Id = 0, Name = "Trailblazer", Finish = "Trail Brass", Aura = "Lantern Parade" },
+        { Id = 0, Name = "Cavern Artist", Finish = "Prism Edge", Aura = "Prism Bloom" },
+    },
     StarshardProducts = {
         { ProductId = 0, Amount = 100 },
         { ProductId = 0, Amount = 250 },
@@ -176,6 +198,55 @@ function config.meadowGuide(progress)
         return sell, "Sell crystals at the market"
     end
     return guild, "Claim your commission reward"
+end
+
+function config.nextJourneyGoal(progress)
+    if progress.Zone < 2 or progress.Rebirths > 0 then return end
+    if not progress.Lantern then
+        local recipe = config.SurveyorLantern
+        local total = math.min(recipe.Cost, progress.Amethyst + progress.Reserve)
+        if total >= recipe.Cost then
+            return "Craft your lantern at the Meadow workbench"
+        end
+        return string.format("Surveyor’s Lantern: %d/%d Amethyst", total, recipe.Cost)
+    end
+    if not config.owns(progress.Auras, config.Resonance.Aura) then
+        return "Crystal Resonance: tune the three pulsing veins"
+    end
+    if progress.Zone == 2 then
+        return "Next expedition: Whiteout Relay in Frozen Peaks"
+    end
+end
+
+function config.zoneCenter(index)
+    return (index - 1) * config.ZoneSpacing
+end
+
+function config.biomeAt(x)
+    if math.abs(x - config.StarterMineX) <= 68 then return config.StarterMineBiome end
+    if math.abs(x) <= config.Meadow.Width / 2 then return 1 end
+    local index = math.floor(x / config.ZoneSpacing + .5) + 1
+    if index >= 2 and index <= #config.Zones and math.abs(x - config.zoneCenter(index)) <= 55 then
+        return index
+    end
+    return nil
+end
+
+function config.zoneAt(x)
+    local biome = config.biomeAt(x)
+    return biome == config.StarterMineBiome and 1 or biome
+end
+
+function config.travelAvailability(index, unlocked, coins)
+    if index == 0 then return "Free • return to the hub", "Travel", true end
+    if index == 1 then return "Free • starter cave", "Travel", true end
+    local zone = config.Zones[index]
+    if unlocked >= index then return "Unlocked • travel available", "Travel", true end
+    if unlocked < index - 1 then
+        return "Locked • unlock " .. config.Zones[index - 1].Name .. " first", "Inspect", false
+    end
+    if coins < zone.Cost then return "Locked • need " .. (zone.Cost - coins) .. " more coins", "Inspect", false end
+    return "Locked • " .. zone.Cost .. " coins to unlock", "Unlock and travel", false
 end
 
 function config.oreKey(zone)

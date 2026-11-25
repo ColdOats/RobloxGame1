@@ -68,14 +68,30 @@ vec.__mul = function(v, n) return Vector3.new(v.X * n, v.Y * n, v.Z * n) end
 vec.__div = function(v, n) return v * (1 / n) end
 
 local CFrame, frames = {}, {}
-function CFrame.new(x, y, z)
-    return setmetatable({ Position = type(x) == "table" and x or Vector3.new(x, y, z) }, frames)
+local function frame(position, right, up, back)
+    return setmetatable({ Position = position, RightVector = right, UpVector = up, LookVector = back * -1 }, frames)
 end
-CFrame.Angles = function() return CFrame.new() end
+function CFrame.new(x, y, z)
+    return frame(type(x) == "table" and x or Vector3.new(x, y, z),
+        Vector3.new(1, 0, 0), Vector3.new(0, 1, 0), Vector3.new(0, 0, 1))
+end
+local function rotate(cf, v)
+    return cf.RightVector * v.X + cf.UpVector * v.Y - cf.LookVector * v.Z
+end
+frames.__mul = function(a, b)
+    return frame(a.Position + rotate(a, b.Position), rotate(a, b.RightVector), rotate(a, b.UpVector), rotate(a, b.LookVector * -1))
+end
+function CFrame.Angles(x, y, z)
+    local sx, sy, sz = math.sin(x), math.sin(y), math.sin(z)
+    local cx, cy, cz = math.cos(x), math.cos(y), math.cos(z)
+    local origin = Vector3.new()
+    return frame(origin, Vector3.new(1, 0, 0), Vector3.new(0, cx, sx), Vector3.new(0, -sx, cx))
+        * frame(origin, Vector3.new(cy, 0, -sy), Vector3.new(0, 1, 0), Vector3.new(sy, 0, cy))
+        * frame(origin, Vector3.new(cz, sz, 0), Vector3.new(-sz, cz, 0), Vector3.new(0, 0, 1))
+end
 CFrame.lookAt = CFrame.new
-frames.__mul = function(a, b) return CFrame.new(a.Position + b.Position) end
-frames.__index = function(_, name)
-    if name == "Rotation" then return CFrame.new() end
+frames.__index = function(cf, name)
+    if name == "Rotation" then return frame(Vector3.new(), cf.RightVector, cf.UpVector, cf.LookVector * -1) end
 end
 local function color()
     return { Lerp = function(self) return self end }
@@ -83,7 +99,12 @@ end
 local Color3 = { fromRGB = color, new = color }
 local Vector2 = { new = function(x, y) return { X = x, Y = y } end }
 local UDim = { new = Vector2.new }
-local UDim2 = { fromOffset = Vector2.new, fromScale = Vector2.new, new = Vector2.new }
+local udim2 = {}
+local function uiDimensions(x, y)
+    return setmetatable({ X = x, Y = y }, udim2)
+end
+udim2.__add = function(a, b) return uiDimensions(a.X + b.X, a.Y + b.Y) end
+local UDim2 = { fromOffset = uiDimensions, fromScale = uiDimensions, new = uiDimensions }
 local ColorSequence = { new = table.pack }
 local NumberRange = { new = table.pack }
 local NumberSequence = { new = table.pack }
@@ -133,7 +154,7 @@ instanceMT.__newindex = function(self, key, value)
 end
 
 function methods:IsA(class)
-    return self.ClassName == class or class == "BasePart" and self.Size ~= nil
+    return self.ClassName == class or class == "BasePart" and getmetatable(self.Size) == vec
 end
 function methods:IsDescendantOf(target)
     local parent = self.Parent
@@ -179,7 +200,9 @@ function methods:Clone()
     for _, child in ipairs(self._children) do child:Clone().Parent = copy end
     return copy
 end
-function methods:FireClient(player, message, cue) player.LastMessage, player.LastCue = message, cue end
+function methods:FireClient(player, message, cue, _, _, soundCue)
+    player.LastMessage, player.LastCue, player.LastSoundCue = message, cue, soundCue or cue
+end
 
 local tags = {}
 local collection = {
@@ -214,8 +237,9 @@ local services = {
     RunService = { IsStudio = function() return false end },
     HttpService = { GenerateGUID = function() return "test-" .. now end },
     DataStoreService = { GetDataStore = getStore },
-    MarketplaceService = {},
-    TweenService = { Create = function()
+    MarketplaceService = { PromptGamePassPurchaseFinished = signal() },
+    TweenService = { Create = function(self, target, info, goal)
+        self.LastTween = { Target = target, Info = info, Goal = goal }
         return { Play = function() end, Pause = function() end, Cancel = function() end, Completed = signal() }
     end },
 }

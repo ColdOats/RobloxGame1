@@ -12,23 +12,27 @@ install(game:GetService("ReplicatedStorage"), "MiningConfig", "ModuleScript", [=
 local config = {
     Zones = {
         { Name = "Meadow", Ore = "Quartz", Cost = 0, Color = Color3.fromRGB(53, 220, 190), Value = 2, Health = 3,
-            Landmark = "Old Survey Marker", DiscoveryReward = 20 },
+            Landmark = "Old Survey Marker", DiscoveryReward = 20, OreRespawn = 10 },
         { Name = "Amethyst Cavern", Ore = "Amethyst", Cost = 250, Color = Color3.fromRGB(161, 85, 255), Value = 8, Health = 6,
-            Landmark = "Echo Chamber", DiscoveryReward = 80 },
+            Landmark = "Echo Chamber", DiscoveryReward = 80, OreRespawn = 12 },
         { Name = "Frozen Peaks", Ore = "Frost Ore", Cost = 1500, Color = Color3.fromRGB(91, 175, 255), Value = 25, Health = 10,
-            Landmark = "Tarn Overlook", DiscoveryReward = 200 },
+            Landmark = "Tarn Overlook", DiscoveryReward = 200, OreRespawn = 14 },
         { Name = "Sunken Ruins", Ore = "Tideglass", Cost = 3500, Color = Color3.fromRGB(84, 233, 182), Value = 42, Health = 16,
-            Landmark = "Tidekeeper Shrine", DiscoveryReward = 450 },
+            Landmark = "Tidekeeper Shrine", DiscoveryReward = 450, OreRespawn = 15 },
         { Name = "Ember Forge", Ore = "Ember Ore", Cost = 8000, Color = Color3.fromRGB(255, 122, 65), Value = 75, Health = 26,
-            Landmark = "Emberheart Beacon", DiscoveryReward = 1000 },
+            Landmark = "Emberheart Beacon", DiscoveryReward = 1000, OreRespawn = 17 },
     },
+    ZoneSpacing = 2800,
+    StarterMineBiome = 0,
+    StarterMineX = -2800,
+    Meadow = { Width = 180, Depth = 220, MineWidthScale = 1.22, MineDepthScale = 1.37 },
     Picks = {
-        { Name = "Starter", Cost = 0, Power = 1 },
-        { Name = "Iron", Cost = 60, Power = 2 },
-        { Name = "Steel", Cost = 250, Power = 4 },
-        { Name = "Crystal", Cost = 1000, Power = 8 },
-        { Name = "Tideglass", Cost = 2800, Power = 13 },
-        { Name = "Embersteel", Cost = 6200, Power = 20 },
+        { Name = "Starter", Cost = 0, Power = 1, SwingCooldown = .75 },
+        { Name = "Iron", Cost = 60, Power = 2, SwingCooldown = .62 },
+        { Name = "Steel", Cost = 250, Power = 4, SwingCooldown = .53 },
+        { Name = "Crystal", Cost = 1000, Power = 8, SwingCooldown = .45 },
+        { Name = "Tideglass", Cost = 2800, Power = 13, SwingCooldown = .38 },
+        { Name = "Embersteel", Cost = 6200, Power = 20, SwingCooldown = .33 },
     },
     Pets = {
         { Name = "Pebble Pup", Weight = 54, Bonus = 1, Color = Color3.fromRGB(172, 149, 121) },
@@ -45,6 +49,10 @@ local config = {
         { Name = "Astral Alloy", Premium = 1, Color = Color3.fromRGB(105, 146, 248) },
         { Name = "Meteor Etch", Premium = 3, Color = Color3.fromRGB(158, 80, 105),
             Accent = Color3.fromRGB(255, 198, 119) },
+        { Name = "Trail Brass", Pass = 1, Color = Color3.fromRGB(166, 108, 68),
+            Accent = Color3.fromRGB(144, 239, 186) },
+        { Name = "Prism Edge", Pass = 2, Color = Color3.fromRGB(112, 101, 183),
+            Accent = Color3.fromRGB(244, 176, 241) },
     },
     Auras = {
         { Name = "Firefly Trail", Weight = 46, Color = Color3.fromRGB(237, 205, 111) },
@@ -59,8 +67,16 @@ local config = {
         { Name = "Prismatic Fieldwork", Specimen = true, Color = Color3.fromRGB(245, 193, 128) },
         { Name = "Dusk Comet", Premium = 4, Color = Color3.fromRGB(163, 132, 255),
             Accent = Color3.fromRGB(255, 171, 125) },
+        { Name = "Lantern Parade", Pass = 1, Color = Color3.fromRGB(255, 208, 104),
+            Accent = Color3.fromRGB(139, 206, 160) },
+        { Name = "Prism Bloom", Pass = 2, Color = Color3.fromRGB(130, 195, 253),
+            Accent = Color3.fromRGB(244, 160, 216) },
     },
-    SurveyorLantern = { Zone = 2, Cost = 24, Range = 45 },
+    SurveyorLantern = { Zone = 2, Cost = 24, Range = 45, Name = "Surveyor’s Lantern", Owned = "SurveyorLantern",
+        Reserve = "AmethystReserve", Benefit = "Nearby rich veins are marked." },
+    FrostSeal = { Zone = 3, Cost = 75, ExtraCapacity = 35, Name = "Frost Satchel Seal", Owned = "FrostSeal",
+        Reserve = "FrostReserve", Benefit = "Your bag holds 35 more crystals." },
+    FirstForgeReward = 20,
     GeodeCompass = { Cost = 450, ExtraSeconds = 20 },
     GeodeHunt = {
         Chain = 3, Window = 45, Limit = 12, Aura = 10,
@@ -126,6 +142,12 @@ local config = {
             { Name = "Quench", Period = 3.2, Low = .24, High = .47 },
         },
     },
+    GamePassSalesEnabled = false,
+    StarshardSalesEnabled = false,
+    GamePasses = {
+        { Id = 0, Name = "Trailblazer", Finish = "Trail Brass", Aura = "Lantern Parade" },
+        { Id = 0, Name = "Cavern Artist", Finish = "Prism Edge", Aura = "Prism Bloom" },
+    },
     StarshardProducts = {
         { ProductId = 0, Amount = 100 },
         { ProductId = 0, Amount = 250 },
@@ -189,6 +211,55 @@ function config.meadowGuide(progress)
     return guild, "Claim your commission reward"
 end
 
+function config.nextJourneyGoal(progress)
+    if progress.Zone < 2 or progress.Rebirths > 0 then return end
+    if not progress.Lantern then
+        local recipe = config.SurveyorLantern
+        local total = math.min(recipe.Cost, progress.Amethyst + progress.Reserve)
+        if total >= recipe.Cost then
+            return "Craft your lantern at the Meadow workbench"
+        end
+        return string.format("Surveyor’s Lantern: %d/%d Amethyst", total, recipe.Cost)
+    end
+    if not config.owns(progress.Auras, config.Resonance.Aura) then
+        return "Crystal Resonance: tune the three pulsing veins"
+    end
+    if progress.Zone == 2 then
+        return "Next expedition: Whiteout Relay in Frozen Peaks"
+    end
+end
+
+function config.zoneCenter(index)
+    return (index - 1) * config.ZoneSpacing
+end
+
+function config.biomeAt(x)
+    if math.abs(x - config.StarterMineX) <= 68 then return config.StarterMineBiome end
+    if math.abs(x) <= config.Meadow.Width / 2 then return 1 end
+    local index = math.floor(x / config.ZoneSpacing + .5) + 1
+    if index >= 2 and index <= #config.Zones and math.abs(x - config.zoneCenter(index)) <= 55 then
+        return index
+    end
+    return nil
+end
+
+function config.zoneAt(x)
+    local biome = config.biomeAt(x)
+    return biome == config.StarterMineBiome and 1 or biome
+end
+
+function config.travelAvailability(index, unlocked, coins)
+    if index == 0 then return "Free • return to the hub", "Travel", true end
+    if index == 1 then return "Free • starter cave", "Travel", true end
+    local zone = config.Zones[index]
+    if unlocked >= index then return "Unlocked • travel available", "Travel", true end
+    if unlocked < index - 1 then
+        return "Locked • unlock " .. config.Zones[index - 1].Name .. " first", "Inspect", false
+    end
+    if coins < zone.Cost then return "Locked • need " .. (zone.Cost - coins) .. " more coins", "Inspect", false end
+    return "Locked • " .. zone.Cost .. " coins to unlock", "Unlock and travel", false
+end
+
 function config.oreKey(zone)
     return "Ore" .. zone
 end
@@ -216,6 +287,344 @@ function config.owns(mask, index)
 end
 
 return config
+]=])
+install(game:GetService("ReplicatedStorage"), "MiningAudio", "ModuleScript", [=[
+local SoundService = game:GetService("SoundService")
+
+local MiningAudio = {}
+MiningAudio.__index = MiningAudio
+
+local tone = "electronicpingshort.wav"
+-- One row per measure, with eight subdivisions in each voice.
+-- Numbers are semitones above the sample, false is a rest, and true lets the note ring.
+local tracks = {
+    [1] = { -- Meadow
+        Step = .215, Gain = .105,
+        Lead = {
+            {0, 4, 7, true, 4, 7, 9, 7},
+            {5, 9, 12, true, 9, 7, 5, 4},
+            {9, 12, 16, 14, 12, true, 9, 12},
+            {11, 7, 5, 2, 7, true, 11, false},
+            {12, 7, 4, 7, 12, true, 16, 12},
+            {14, 12, 9, 7, 5, true, 9, 7},
+            {4, 7, 9, 12, 11, 9, 7, 5},
+            {4, true, 2, 7, 0, true, false, 7},
+        },
+        Bass = {
+            {-12, false, -5, -12, -8, false, -5, -8},
+            {-7, false, 0, -7, -3, false, 0, -5},
+            {-3, false, -8, -3, 0, false, -8, 0},
+            {-5, false, 2, -5, -1, false, 2, -5},
+            {-12, false, -5, -12, -8, false, -5, -8},
+            {-7, false, 0, -7, -3, false, 0, -5},
+            {-8, false, -3, false, -5, false, -1, 2},
+            {-12, false, -10, -5, -12, true, false, -5},
+        },
+        Harmony = {
+            {false, 0, 4, false, false, 4, 5, 4},
+            {false, 5, 9, false, false, 4, 2, 0},
+            {false, 9, 12, 11, 9, false, 4, 9},
+            {false, 2, -1, false, 2, false, 7, false},
+            {7, 4, 0, 4, 7, false, 12, 7},
+            {9, 7, 5, 4, 2, false, 5, 4},
+            {0, 4, 5, 7, 7, 5, 4, 2},
+            {0, false, -1, 2, -5, true, false, 2},
+        },
+    },
+    [0] = { -- Meadow Mine
+        Step = .232, Gain = .093,
+        Lead = {
+            {7, false, 0, 3, 7, true, 10, 7},
+            {5, false, -2, 2, 5, true, 9, 5},
+            {3, 7, 10, 12, 10, 7, 5, 3},
+            {2, true, 5, 7, 0, true, false, 5},
+        },
+        Bass = {
+            {-12, false, -5, false, -12, -9, -5, false},
+            {-14, false, -7, false, -14, -10, -7, false},
+            {-9, false, -2, false, -7, -3, 0, false},
+            {-5, false, -10, -5, -12, true, false, -5},
+        },
+        Harmony = {
+            {false, false, -5, 0, false, false, 3, false},
+            {false, false, -7, -2, false, false, 2, false},
+            {false, 3, 7, 8, false, 3, 2, 0},
+            {false, -2, 2, 5, 3, true, false, 2},
+        },
+    },
+    [2] = { -- Amethyst Cavern
+        Step = .244, Gain = .089,
+        Lead = {
+            {-3, false, 2, 5, 9, true, 5, 2},
+            {12, 10, 5, false, 7, 5, 2, false},
+            {1, 4, 7, 9, 13, true, 9, 7},
+            {5, 2, 9, 5, 2, true, false, 5},
+        },
+        Bass = {
+            {-10, false, -3, false, -10, false, -7, -3},
+            {-14, false, -7, false, -7, false, 0, -7},
+            {-15, false, -8, -3, -3, false, -8, -11},
+            {-10, false, -7, -3, -10, true, false, -3},
+        },
+        Harmony = {
+            {false, false, -3, 2, false, false, 2, false},
+            {false, 5, 2, false, 0, false, -3, false},
+            {false, 1, 4, false, 9, false, 4, 1},
+            {2, false, 5, 2, -3, true, false, 2},
+        },
+    },
+    [3] = { -- Frozen Peaks
+        Step = .259, Gain = .081,
+        Lead = {
+            {9, true, 14, 16, 18, 16, 14, false},
+            {11, true, 14, 18, 21, true, 18, 16},
+            {14, 16, 19, 16, 14, 11, 9, 7},
+            {6, 9, 11, 9, 14, true, false, 6},
+        },
+        Bass = {
+            {-10, false, -3, false, -10, false, -6, false},
+            {-13, false, -6, false, -1, false, -6, false},
+            {-5, false, 2, false, -5, false, -1, false},
+            {-3, false, -8, -3, -10, true, false, -3},
+        },
+        Harmony = {
+            {false, false, 9, 11, 14, false, 9, false},
+            {false, 6, 9, 11, 14, true, false, 9},
+            {7, false, 14, 11, 7, false, 6, false},
+            {false, 6, 7, 6, 9, true, false, 2},
+        },
+    },
+    [4] = { -- Sunken Ruins
+        Step = .235, Gain = .088,
+        Lead = {
+            {4, 7, 11, false, 9, 7, 4, false},
+            {2, 6, 9, 12, 11, 9, 6, 2},
+            {7, false, 11, 14, 16, true, 14, 11},
+            {9, 6, 2, 6, 4, true, false, 11},
+        },
+        Bass = {
+            {-8, false, -1, -8, -5, false, -1, false},
+            {-10, false, -3, -10, -6, false, -3, false},
+            {-5, false, 2, -5, -1, false, 2, -1},
+            {-3, false, -6, -10, -8, true, false, -1},
+        },
+        Harmony = {
+            {false, 4, 7, false, 6, 4, 0, false},
+            {false, 2, 6, 9, 7, 6, 2, false},
+            {4, false, 7, 11, 12, false, 11, 7},
+            {6, 2, false, 2, -1, true, false, 7},
+        },
+    },
+    [5] = { -- Ember Forge
+        Step = .192, Gain = .097,
+        Lead = {
+            {12, 9, 4, 9, 7, 4, 7, 9},
+            {5, 9, 14, 12, 9, 5, 9, 12},
+            {4, 8, 11, 14, 16, 14, 11, 8},
+            {12, 9, 7, 4, 9, true, false, 4},
+        },
+        Bass = {
+            {-15, -15, -8, -15, -12, -15, -8, -12},
+            {-10, -10, -3, -10, -7, -10, -3, -7},
+            {-8, -8, -4, -8, -1, -8, -4, -13},
+            {-15, -8, -12, -8, -15, true, false, -8},
+        },
+        Harmony = {
+            {false, 4, 7, 4, false, 0, 4, 5},
+            {false, 5, 9, 7, false, 2, 5, 9},
+            {false, 4, 8, 11, 14, 11, 8, 4},
+            {9, 4, 5, 0, 4, true, false, 0},
+        },
+    },
+}
+local effects = {
+    hit = {"switch.wav", .26, .88, .14},
+    pickRing = {tone, .09, 1.08, .155},
+    ["break"] = {"switch.wav", .30, .63, .14},
+    richBreak = {"switch.wav", .30, .63, .14},
+    shards = {tone, .22, 1.41, .178},
+    richChime = {tone, .15, 1.89, .239},
+    coins = {tone, .19, 1.12},
+    buy = {tone, .20, 1.35},
+    accept = {"switch.wav", .22, 1.10},
+    reward = {tone, .22, 1.50},
+    travel = {tone, .18, .76},
+    craft = {tone, .22, 1.04},
+    forge = {"switch.wav", .23, .67},
+    resonance1 = {tone, .24, .83},
+    resonance2 = {tone, .24, 1.05},
+    resonance3 = {tone, .27, 1.32},
+}
+
+local function voice(parent, name, sample)
+    local sound = Instance.new("Sound")
+    sound.Name = name
+    sound.SoundId = "rbxasset://sounds/" .. sample
+    sound.Parent = parent
+    return sound
+end
+
+local function note(sound, semitones, volume)
+    if semitones == true then return end
+    sound:Stop()
+    if semitones == false then return end
+    sound.PlaybackSpeed = 2 ^ (semitones / 12)
+    sound.Volume = volume
+    sound.TimePosition = 0
+    sound:Play()
+end
+
+function MiningAudio.new(player, biomeAt)
+    local self = setmetatable({
+        Music = true,
+        Effects = true,
+        Lead = voice(SoundService, "Mine Music Lead", tone),
+        Bass = voice(SoundService, "Mine Music Bass", tone),
+        Harmony = voice(SoundService, "Mine Music Harmony", tone),
+        Percussion = voice(SoundService, "Mine Music Percussion", "switch.wav"),
+        Bank = {},
+        Zone = nil,
+    }, MiningAudio)
+    for cue, effect in pairs(effects) do
+        local sound = voice(SoundService, "Mine " .. cue, effect[1])
+        sound.Volume = effect[2]
+        sound.PlaybackSpeed = effect[3]
+        self.Bank[cue] = sound
+    end
+
+    task.spawn(function()
+        local measure, step = 1, 1
+        while player.Parent do
+            local character = player.Character
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            local zone = root and biomeAt(root.Position.X)
+            if zone ~= self.Zone then
+                self:stopMusic()
+                measure, step = 1, 1
+                self.Zone = zone
+            end
+            local track = tracks[zone]
+            if self.Music and track then
+                note(self.Lead, track.Lead[measure][step], track.Gain)
+                note(self.Bass, track.Bass[measure][step], track.Gain * .68)
+                note(self.Harmony, track.Harmony[measure][step], track.Gain * .37)
+                if step % 2 == 1 then
+                    note(self.Percussion, step % 4 == 1 and -9 or 6, track.Gain * .17)
+                end
+                step = step % 8 + 1
+                if step == 1 then measure = measure % #track.Lead + 1 end
+            end
+            task.wait(track and track.Step or .25)
+        end
+        self.Lead:Destroy()
+        self.Bass:Destroy()
+        self.Harmony:Destroy()
+        self.Percussion:Destroy()
+        for _, sound in pairs(self.Bank) do sound:Destroy() end
+    end)
+    return self
+end
+
+function MiningAudio:stopMusic()
+    self.Lead:Stop()
+    self.Bass:Stop()
+    self.Harmony:Stop()
+    self.Percussion:Stop()
+end
+
+function MiningAudio:setMusic(enabled)
+    self.Music = enabled
+    if not enabled then self:stopMusic() end
+end
+
+function MiningAudio:setEffects(enabled)
+    self.Effects = enabled
+    if not enabled then
+        for _, sound in pairs(self.Bank) do sound:Stop() end
+    end
+end
+
+local function playEffect(self, name)
+    local sound = self.Bank[name]
+    if not sound or not self.Effects then return end
+    local function play()
+        if self.Effects and sound.Parent then
+            sound.TimePosition = 0
+            sound:Play()
+        end
+    end
+    local delay = effects[name][4]
+    if delay then task.delay(delay, play) else play() end
+end
+
+function MiningAudio:cue(name)
+    playEffect(self, name)
+    if name == "hit" then
+        playEffect(self, "pickRing")
+    elseif name == "break" or name == "richBreak" then
+        playEffect(self, "shards")
+        if name == "richBreak" then playEffect(self, "richChime") end
+    end
+end
+
+return MiningAudio
+]=])
+install(game:GetService("ReplicatedStorage"), "BiomeView", "ModuleScript", [=[
+local BiomeView = {}
+
+function BiomeView.start(player, workspace, zoneAt)
+    local view = { Zone = 1 }
+    local world, spawn
+    local watcher
+
+    local function updatePart(part)
+        if not part:IsA("BasePart") then return end
+        local root = part
+        while root.Parent and root.Parent ~= world do root = root.Parent end
+        if root.Parent ~= world then return end
+        -- Market props sit beside the named zone folders and belong to Meadow.
+        local index = root:GetAttribute("BiomeIndex") or 1
+        part.LocalTransparencyModifier = index == view.Zone and 0 or 1
+    end
+
+    local function refresh()
+        if not world then return end
+        for _, part in ipairs(world:GetDescendants()) do updatePart(part) end
+        if spawn then
+            for _, part in ipairs(spawn:GetDescendants()) do
+                if part:IsA("BasePart") then part.LocalTransparencyModifier = view.Zone == 1 and 0 or 1 end
+            end
+        end
+    end
+
+    task.spawn(function()
+        while player.Parent do
+            local character = player.Character
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            local zone = root and zoneAt(root.Position.X)
+            local nextWorld = workspace:FindFirstChild("CrystalWorld")
+            local nextSpawn = workspace:FindFirstChild("MiningStart")
+            local spawnChanged = nextSpawn ~= spawn
+            spawn = nextSpawn
+            if nextWorld ~= world then
+                if watcher then watcher:Disconnect(); watcher = nil end
+                world = nextWorld
+                if world then watcher = world.DescendantAdded:Connect(updatePart) end
+                if zone then view.Zone = zone end
+                refresh()
+            elseif spawnChanged or (zone and zone ~= view.Zone) then
+                view.Zone = zone or view.Zone
+                refresh()
+            end
+            task.wait(.18)
+        end
+        if watcher then watcher:Disconnect() end
+    end)
+
+    return view
+end
+
+return BiomeView
 ]=])
 install(game:GetService("ServerScriptService"), "Pickaxes", "ModuleScript", [=[
 local TweenService = game:GetService("TweenService")
@@ -314,7 +723,7 @@ function Pickaxes.sync(player, pick, tier, finish)
 
     local tool = Instance.new("Tool")
     tool.Name = pick.Name .. " Pickaxe"
-    tool.ToolTip = pick.Power .. " mining power"
+    tool.ToolTip = string.format("%d mining power • %.2fs between swings", pick.Power, pick.SwingCooldown)
     tool.CanBeDropped = false
     tool.Grip = CFrame.new(0, -.55, 0) * CFrame.Angles(math.rad(15), 0, 0)
     tool:SetAttribute("MiningPickaxe", true)
@@ -394,6 +803,7 @@ local worldModule = install(game:GetService("ServerScriptService"), "World", "Mo
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 local Pickaxes = require(script.Parent:WaitForChild("Pickaxes"))
+local config = require(game:GetService("ReplicatedStorage"):WaitForChild("MiningConfig"))
 
 local World = {}
 local rgb = Color3.fromRGB
@@ -402,7 +812,7 @@ local material = Enum.Material
 
 local palettes = {
     {
-        ground = rgb(73, 119, 73), groundMaterial = material.Grass,
+        ground = rgb(84, 140, 67), groundMaterial = material.Plastic,
         trail = rgb(168, 143, 111), rock = rgb(95, 109, 104),
     },
     {
@@ -426,6 +836,19 @@ local palettes = {
 local darkStone = rgb(53, 61, 69)
 local timber = rgb(105, 76, 55)
 
+local studdedSurfaces = {
+    ["Meadow Ground"] = true,
+    ["Starter Mine Ground"] = true,
+    ["Market Square"] = true,
+    ["Wayshrine Promenade"] = true,
+    ["Stall Landing"] = true,
+    ["Plaza Kerb"] = true,
+    ["Commons Pavers"] = true,
+    ["Storefront Cap"] = true,
+    ["Town Sidewalk"] = true,
+    ["Descent Floor"] = true,
+}
+
 local function piece(parent, name, size, position, color, surface, solid, shape, rotation, className)
     local object = Instance.new(className or "Part")
     object.Name = name
@@ -434,6 +857,10 @@ local function piece(parent, name, size, position, color, surface, solid, shape,
     object.Anchored = true
     object.Color = color
     object.Material = surface
+    if studdedSurfaces[name] then
+        object.Material = material.Plastic
+        object.TopSurface = Enum.SurfaceType.Studs
+    end
     object.CanCollide = solid == true
     object.CanTouch = false
     object.CanQuery = solid == true
@@ -463,6 +890,63 @@ local function lamp(parent, position, color)
 end
 
 local mineWarm = rgb(255, 231, 184)
+
+local function signText(board, headline, subtitle, tint, distance)
+    local face = Instance.new("SurfaceGui")
+    face.Face = Enum.NormalId.Back
+    face.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+    face.PixelsPerStud = 54
+    face.LightInfluence = 0
+    face.MaxDistance = distance
+    face.Parent = board
+
+    local function line(message, color, y, height, font)
+        local lettering = Instance.new("TextLabel")
+        lettering.Position = UDim2.fromScale(.08, y)
+        lettering.Size = UDim2.fromScale(.84, height)
+        lettering.BackgroundTransparency = 1
+        lettering.TextColor3 = color
+        lettering.Text = message
+        lettering.TextScaled = true
+        lettering.Font = font
+        lettering.Parent = face
+        local limit = Instance.new("UITextSizeConstraint")
+        limit.MaxTextSize = math.floor(board.Size.Y * face.PixelsPerStud * height * .76)
+        limit.Parent = lettering
+        return lettering
+    end
+    local heading = line(headline, tint, subtitle and .12 or .10, subtitle and .46 or .80, Enum.Font.SourceSansBold)
+    if subtitle then
+        return line(subtitle, rgb(255, 229, 168), .61, .25, Enum.Font.SourceSans)
+    end
+    return heading
+end
+
+local function signFrame(parent, board)
+    local size = board.Size
+    local function rail(name, dimensions, x, y, tint, finish)
+        local cf = board.CFrame * CFrame.new(x, y, size.Z / 2 + .035)
+        local trim = piece(parent, name, dimensions, cf.Position, tint, finish)
+        trim.CFrame = cf
+    end
+    local rim = rgb(89, 59, 42)
+    local brass = rgb(182, 131, 72)
+    for _, side in ipairs({-1, 1}) do
+        rail("Sign Frame", vector(size.X + .12, .12, .14), 0, side * size.Y / 2, rim, material.Wood)
+        rail("Sign Frame", vector(.12, size.Y, .14), side * size.X / 2, 0, rim, material.Wood)
+        rail("Sign Rivet", vector(.115, .115, .09), side * (size.X / 2 - .22), 0, brass, material.Metal)
+    end
+end
+
+local function signPosts(board)
+    local bottom = board.Position.Y - board.Size.Y / 2
+    local height = math.max(.30, bottom - .48 + .24)
+    for _, side in ipairs({-1, 1}) do
+        local placement = board.CFrame * CFrame.new(side * board.Size.X * .37, .48 + height / 2 - board.Position.Y, -.085)
+        local post = piece(board, "Sign Post", vector(.34, height, .34), placement.Position, timber, material.Wood)
+        post.CFrame = placement
+    end
+end
 
 local function mineLamp(parent, position, accent, range)
     local mountHeight = 12.08 - position.Y
@@ -501,57 +985,115 @@ local function particles(parent, color, rate, speed, duration, sizes)
     return emitter
 end
 
-local function tree(parent, position, height, color)
-    local treeModel = Instance.new("Model")
-    treeModel.Name = "Meadow Oak"
-    treeModel.Parent = parent
-    local bark = rgb(99, 70, 51)
-    local function limb(from, to, width)
-        local length = (to - from).Magnitude
-        local cf = CFrame.lookAt((from + to) / 2, to)
-        local branch = piece(treeModel, "Bark", vector(width, width, length), cf.Position, bark, material.Wood)
-        branch.CFrame = cf
-    end
+local function woodSegment(parent, name, from, to, width, shade, solid)
+    local direction = to - from
+    local length = direction.Magnitude
+    local center = (from + to) / 2
+    local beam = piece(parent, name, vector(length + .12, width, width), center,
+        shade, material.Wood, solid, Enum.PartType.Cylinder)
+    local up = math.abs(direction.Y) > length * .96 and vector(1, 0, 0) or vector(0, 1, 0)
+    beam.CFrame = CFrame.lookAt(center, to, up) * CFrame.Angles(0, math.pi / 2, 0)
+end
 
-    piece(treeModel, "Trunk", vector(1.45, height, 1.45), position + vector(0, height / 2, 0),
-        bark, material.Wood, true)
-    for index = 1, 4 do
-        local angle = index * math.pi / 2 + height * .1
-        local direction = vector(math.cos(angle), 0, math.sin(angle))
-        limb(position + vector(0, .55, 0), position + direction * 1.9 + vector(0, .07, 0), .42)
-        local tip = position + direction * 2.55 + vector(0, height + index % 2 * .9, 0)
-        limb(position + vector(0, height * .57, 0), tip, .52)
-        local leaf = color:Lerp(index % 2 == 0 and rgb(130, 183, 83) or rgb(27, 70, 55), .32)
-        piece(treeModel, "Leaf Cluster", vector(5.2, 4.5, 5.6), tip, leaf, material.Grass, false, Enum.PartType.Ball)
+local function tree(parent, position, height, color)
+    local oak = Instance.new("Model")
+    oak.Name = "Meadow Oak"
+    oak.Parent = parent
+    local rng = Random.new(math.floor(position.X * 7381 + position.Z * 19397))
+    local bark = rgb(111, 78, 53)
+    local baseBark = rgb(91, 65, 47)
+    local lean = vector(rng:NextNumber(-.42, .42), 0, rng:NextNumber(-.42, .42))
+    local fork = position + lean + vector(0, height * .58, 0)
+    local crown = position + lean * 2 + vector(0, height, 0)
+    local girth = height * .145
+    woodSegment(oak, "Flared oak base", position - vector(0, .1, 0),
+        position + vector(0, height * .18, 0), girth * 1.32, baseBark, true)
+    woodSegment(oak, "Oak trunk", position + vector(0, height * .15, 0), fork, girth, bark, true)
+    woodSegment(oak, "Tapered leader", fork, crown, girth * .64, bark, false)
+
+    local direction = rng:NextNumber(0, math.pi * 2)
+    for branch = 1, 5 do
+        local angle = direction + branch * 2.40 + rng:NextNumber(-.18, .18)
+        local radial = vector(math.cos(angle), 0, math.sin(angle))
+        local length = height * rng:NextNumber(.27, .47)
+        local rise = height * rng:NextNumber(.16, .46)
+        local origin = fork + vector(0, height * rng:NextNumber(-.10, .12), 0)
+        local elbow = origin + radial * (length * .51) + vector(0, rise * .56, 0)
+        local tip = origin + radial * length + vector(0, rise, 0)
+        woodSegment(oak, "Oak limb", origin, elbow, girth * .46, bark, false)
+        woodSegment(oak, "Branch tip", elbow, tip, girth * .27, bark, false)
+        if branch <= 3 then
+            woodSegment(oak, "Exposed root", position + vector(0, .5, 0),
+                position + radial * (girth * 1.5) + vector(0, .04, 0), girth * .34, baseBark, false)
+        end
+
+        local leaves = color:Lerp(rgb(34, 75, 47), rng:NextNumber(.10, .36))
+        local sunlit = leaves:Lerp(rgb(154, 185, 85), rng:NextNumber(.22, .55))
+        local spread = height * rng:NextNumber(.33, .50)
+        piece(oak, "Leaf mass", vector(spread, height * .27, spread * .8),
+            tip + vector(0, height * .075, 0), leaves, material.Grass, false, Enum.PartType.Ball,
+            CFrame.Angles(0, -angle, rng:NextNumber(-.22, .22)))
+        piece(oak, "Light leaf spray", vector(spread * .73, height * .22, spread * .68),
+            tip + radial * (height * .09) + vector(0, height * .18, 0), sunlit,
+            material.Grass, false, Enum.PartType.Ball)
     end
-    piece(treeModel, "Crown", vector(6.1, 5, 5.9), position + vector(0, height + 2.7, 0),
-        color:Lerp(rgb(139, 190, 94), .32), material.Grass, false, Enum.PartType.Ball)
+    piece(oak, "Oak crown", vector(height * .54, height * .33, height * .48),
+        crown + vector(0, height * .115, 0), color:Lerp(rgb(145, 177, 82), .32),
+        material.Grass, false, Enum.PartType.Ball)
 end
 
 local function pine(parent, position, height)
-    piece(parent, "Pine Trunk", vector(.8, height, .8), position + vector(0, height / 2, 0),
-        timber, material.Wood, true)
-    for tier = 1, 3 do
-        local width = height * (.77 - tier * .15)
-        local center = position + vector(0, height * (.27 + tier * .19), 0)
-        piece(parent, "Pine Bough", vector(width, height * .35, width), center,
-            rgb(56 + tier * 7, 91 + tier * 7, 107 + tier * 8), material.Grass, false, Enum.PartType.Ball)
-        piece(parent, "Pine Snowcap", vector(width * .8, height * .17, width * .79),
-            center + vector(0, height * .095, 0), rgb(218, 233, 240), material.Snow, false, Enum.PartType.Ball)
+    local pineTree = Instance.new("Model")
+    pineTree.Name = "Frostpine"
+    pineTree.Parent = parent
+    local rng = Random.new(math.floor(position.X * 2927 + position.Z * 6817))
+    local bark = rgb(113, 88, 71)
+    local lower = position + vector(0, height * .43, 0)
+    local tip = position + vector(.14, height, -.12)
+    woodSegment(pineTree, "Lower pine trunk", position, lower, height * .09, bark, true)
+    woodSegment(pineTree, "Pine leader", lower, tip, height * .044, bark, false)
+
+    for tier = 1, 4 do
+        local level = .26 + tier * .145
+        local reach = height * (.37 - tier * .059)
+        local hub = position + vector(0, height * level, 0)
+        local baseColor = rgb(41 + tier * 6, 78 + tier * 8, 83 + tier * 8)
+        for branch = 1, 4 do
+            local angle = branch * math.pi / 2 + tier * .71 + rng:NextNumber(-.14, .14)
+            local radial = vector(math.cos(angle), 0, math.sin(angle))
+            local length = reach * rng:NextNumber(.77, 1.19)
+            local midpoint = hub + radial * (length * .49) - vector(0, height * .044, 0)
+            local yaw = CFrame.Angles(0, -angle, -.20)
+            piece(pineTree, "Pine needle bough", vector(length * 1.58, height * .115, reach * .72),
+                midpoint, baseColor, material.Grass, false, Enum.PartType.Ball, yaw)
+            if (tier + branch) % 3 ~= 0 then
+                piece(pineTree, "Bough snow", vector(length * 1.10, height * .046, reach * .48),
+                    midpoint + vector(0, height * .054, 0), rgb(218, 233, 240), material.Snow,
+                    false, Enum.PartType.Ball, yaw)
+            end
+        end
     end
+    piece(pineTree, "Needle tip", vector(height * .108, height * .23, height * .103),
+        tip - vector(0, height * .071, 0), rgb(62, 111, 118), material.Grass, false, Enum.PartType.Ball,
+        CFrame.Angles(0, 0, -.07))
 end
 
 local shrubStyles = {
-    { Name = "Meadow Bramble", Shade = rgb(42, 88, 59), Tip = rgb(109, 151, 68), Accent = rgb(247, 174, 117) },
-    { Name = "Cavern Moss", Shade = rgb(57, 69, 73), Tip = rgb(97, 109, 113), Accent = rgb(181, 140, 228) },
-    { Name = "Snowberry Shrub", Shade = rgb(58, 91, 112), Tip = rgb(96, 136, 155), Accent = rgb(218, 237, 244), Snow = true },
-    { Name = "Tide Fern", Shade = rgb(44, 96, 79), Tip = rgb(111, 164, 113), Accent = rgb(183, 220, 150) },
-    { Name = "Cinder Scrub", Shade = rgb(87, 61, 58), Tip = rgb(143, 89, 65), Accent = rgb(229, 143, 80) },
+    { Name = "Meadow Bramble", Shade = rgb(42, 88, 59), Tip = rgb(109, 151, 68), Accent = rgb(247, 174, 117),
+        Sprout = "Meadow Wildflower", Surface = material.Grass },
+    { Name = "Cavern Moss", Shade = rgb(57, 69, 73), Tip = rgb(97, 109, 113), Accent = rgb(181, 140, 228),
+        Sprout = "Cavern Glowcap", Surface = material.Neon },
+    { Name = "Snowberry Shrub", Shade = rgb(58, 91, 112), Tip = rgb(96, 136, 155), Accent = rgb(218, 237, 244),
+        Sprout = "Frost Bloom", Surface = material.Ice, Snow = true },
+    { Name = "Tide Fern", Shade = rgb(44, 96, 79), Tip = rgb(111, 164, 113), Accent = rgb(183, 220, 150),
+        Sprout = "Tidal Reed", Surface = material.Grass },
+    { Name = "Cinder Scrub", Shade = rgb(87, 61, 58), Tip = rgb(143, 89, 65), Accent = rgb(229, 143, 80),
+        Sprout = "Emberglass", Surface = material.Glass },
 }
 
 local function shrub(parent, position, size, style, rng)
     local ball = Enum.PartType.Ball
-    piece(parent, style.Name, vector(2.7, 1.65, 2.35) * size, position + vector(0, .60, 0) * size,
+    piece(parent, style.Name, vector(2.7, 1.46, 2.35) * size, position + vector(0, .73, 0) * size,
         style.Shade, material.Grass, false, ball)
     for index = 1, 3 do
         local angle = index * math.pi * 2 / 3 + rng:NextNumber(-.26, .26)
@@ -573,36 +1115,10 @@ local function groundCover(parent, position, style, rng)
     for leaf = -1, 1 do
         local height = rng:NextNumber(.56, 1.18)
         local blade = piece(parent, "Ground Cover", vector(.28, height, .19),
-            position + vector(leaf * spread * .32, height * .39, leaf * .11),
+            position + vector(leaf * spread * .32, height * .52 + .06, leaf * .11),
             style.Tip:Lerp(style.Shade, rng:NextNumber(.1, .65)), material.Grass, false,
             Enum.PartType.Ball, CFrame.Angles(0, rng:NextNumber(-.45, .45), leaf * -.38))
         blade.CastShadow = false
-    end
-end
-
-local function fillZoneFoliage(parent, zone, x)
-    local foliage = Instance.new("Folder")
-    foliage.Name = "Foliage"
-    foliage.Parent = parent
-    local style = shrubStyles[zone]
-    local rng = Random.new(6130 + zone)
-    for _, side in ipairs({-1, 1}) do
-        local spacing = zone == 1 and 9 or 16
-        for z = -40, 42, spacing do
-            local radius = zone == 4 and 36.5 or zone == 1 and 43 or 39
-            local center = vector(x + side * (radius + rng:NextNumber(-1.1, 1.1)), .5, z)
-            local size = rng:NextNumber(.69, 1.22) * (zone == 2 and .70 or 1)
-            shrub(foliage, center, size, style, rng)
-            if (z + 40) % (2 * spacing) == 0 then
-                groundCover(foliage, center + vector(side * -2.1, 0, 1.4), style, rng)
-            end
-        end
-        for _, z in ipairs({-42, 15, 32, 45}) do
-            local radius = zone == 1 and 31 or zone == 2 and 25 or 30
-            local patch = vector(x + side * radius, .5, z)
-            groundCover(foliage, patch, style, rng)
-            if zone == 1 or zone == 4 then shrub(foliage, patch + vector(side * 2.5, 0, -.5), .76, style, rng) end
-        end
     end
 end
 
@@ -612,37 +1128,58 @@ local function shard(parent, position, height, color, tilt)
 end
 
 function World.ensureSpawn()
-    if workspace:FindFirstChild("MiningStart") then
-        return
+    local start = workspace:FindFirstChild("MiningStart") or Instance.new("Folder")
+    start.Name = "MiningStart"
+    local size = vector(config.Meadow.Width, 1, config.Meadow.Depth)
+    local ground = start:FindFirstChild("Meadow Ground")
+    if ground and ground:IsA("BasePart") then
+        ground.Size = size
+        ground.Color = palettes[1].ground
+        ground.Material = material.Plastic
+        ground.TopSurface = Enum.SurfaceType.Studs
+    else
+        piece(start, "Meadow Ground", size, vector(0, 0, 0), palettes[1].ground, material.Plastic, true)
     end
 
-    local start = Instance.new("Folder")
-    start.Name = "MiningStart"
-    piece(start, "Meadow Ground", vector(110, 1, 100), vector(0, 0, 0), palettes[1].ground, material.Grass, true)
-
-    local spawn = Instance.new("SpawnLocation")
-    spawn.Name = "Mining Spawn"
-    spawn.Size = vector(8, 1, 8)
-    spawn.Position = vector(0, 1, 0)
-    spawn.Anchored = true
-    spawn.Neutral = true
-    spawn.Parent = start
+    if not start:FindFirstChildOfClass("SpawnLocation") then
+        local spawn = Instance.new("SpawnLocation")
+        spawn.Name = "Mining Spawn"
+        spawn.Size = vector(8, 1, 8)
+        spawn.Position = vector(0, 1, 0)
+        spawn.Anchored = true
+        spawn.Neutral = true
+        spawn.Parent = start
+    end
+    local spawn = start:FindFirstChildOfClass("SpawnLocation")
+    spawn.Color = rgb(209, 217, 214)
+    spawn.Material = material.Plastic
+    spawn.TopSurface = Enum.SurfaceType.Studs
     start.Parent = workspace
 end
 
 function World.create()
     World.ensureSpawn()
-    Lighting.ClockTime = 14.15
-    Lighting.Brightness = 2.3
+    Lighting.ClockTime = 13.25
+    Lighting.Brightness = 2.1
     Lighting.Ambient = rgb(139, 142, 151)
-    Lighting.OutdoorAmbient = rgb(156, 162, 174)
+    Lighting.OutdoorAmbient = rgb(160, 167, 181)
 
     local atmosphere = Lighting:FindFirstChildOfClass("Atmosphere") or Instance.new("Atmosphere")
     atmosphere.Color = rgb(214, 230, 246)
     atmosphere.Decay = rgb(131, 153, 178)
-    atmosphere.Density = .20
-    atmosphere.Haze = .9
+    atmosphere.Density = .11
+    atmosphere.Haze = .25
     atmosphere.Parent = Lighting
+
+    local grade = Lighting:FindFirstChild("Crystal Color Grading") or Instance.new("ColorCorrectionEffect")
+    grade.Name = "Crystal Color Grading"
+    grade.Saturation = .025
+    grade.Contrast = .01
+    grade.TintColor = rgb(255, 253, 246)
+    grade.Parent = Lighting
+
+    local bloom = Lighting:FindFirstChild("Crystal Glow")
+    if bloom then bloom.Enabled = false end
 
     local folder = Instance.new("Folder")
     folder.Name = "CrystalWorld"
@@ -650,46 +1187,133 @@ function World.create()
     return folder
 end
 
+local slopeHeights = {.43, .33, .24}
+local mountainColors = {
+    {rgb(86, 116, 80), rgb(104, 137, 89), rgb(126, 152, 102)},
+    {rgb(65, 61, 85), rgb(87, 79, 111), rgb(116, 102, 145)},
+    {rgb(106, 144, 163), rgb(151, 179, 196), rgb(224, 235, 242)},
+    {rgb(87, 119, 103), rgb(118, 147, 119), rgb(165, 173, 128)},
+    {rgb(71, 59, 63), rgb(100, 74, 71), rgb(138, 94, 78)},
+}
+
+local function mountainBackdrop(parent, index, x)
+    local range = Instance.new("Folder")
+    range.Name = "Mountain Backdrop"
+    range.Parent = parent
+    local colors = mountainColors[index]
+    local rng = Random.new(2348 + index)
+    local front = index == 1 and (config.Meadow.Depth / 2 + 29) or 86
+    local rear = index == 2 and -207 or index == 1 and (-config.Meadow.Depth / 2 - 27) or -82
+    local side = index == 1 and (config.Meadow.Width / 2 + 30) or 89
+
+    local function peak(px, pz, rotated)
+        local height = rng:NextNumber(27, 50)
+        local span = rng:NextNumber(35, 48)
+        local depth = rng:NextNumber(17, 29)
+        local drift = rng:NextNumber(-7, 7)
+        local floor = -6
+        for tier = 1, 3 do
+            local rise = height * slopeHeights[tier]
+            local multiplier = 1 - (tier - 1) * .27
+            local mid = floor + rise / 2
+            local offset = (tier - 1) * drift
+            local width, length = span * multiplier, depth * multiplier
+            if rotated then width, length = length, width end
+            local center = vector(x + px + (rotated and 0 or offset), mid, pz + (rotated and offset or 0))
+            piece(range, tier == 3 and "Peak" or "Mountain Slope", vector(width, rise + .1, length),
+                center, colors[tier], index == 3 and tier == 3 and material.Snow or material.Plastic)
+            floor += rise
+        end
+    end
+
+    for px = -side, side, 29 do
+        peak(px, rear - rng:NextNumber(0, 9), false)
+        peak(px, front + rng:NextNumber(0, 9), false)
+    end
+    for _, direction in ipairs({-1, 1}) do
+        for pz = rear + 19, front - 16, 30 do
+            peak(direction * (side + rng:NextNumber(0, 7)), pz, true)
+        end
+    end
+end
+
+function World.starterMine(parent)
+    local ground = Instance.new("Folder")
+    ground.Name = "Meadow Mine Grounds"
+    ground:SetAttribute("BiomeIndex", config.StarterMineBiome)
+    ground.Parent = parent
+    local x = config.StarterMineX
+    piece(ground, "Starter Mine Ground", vector(126, 1, 118), vector(x, 0, -5),
+        palettes[1].ground, material.Plastic, true)
+    piece(ground, "Starter Mine Bedrock", vector(126, 14, 118), vector(x, -7.55, -5),
+        palettes[1].rock, material.Rock, true)
+    piece(ground, "Mine Arrival Path", vector(9.5, .1, 29), vector(x, .55, 8.5),
+        rgb(176, 157, 121), material.Cobblestone)
+    mountainBackdrop(ground, 1, x)
+    for _, side in ipairs({-1, 1}) do
+        for _, z in ipairs({-49, -27, -5, 19, 40}) do
+            rock(ground, vector(x + side * 57, 2.3, z), vector(8.4, 5.6, 9.6), palettes[1].rock)
+        end
+        lamp(ground, vector(x + side * 7.5, .5, 8), mineWarm)
+        local rest = vector(x + side * 9.8, .5, 20)
+        piece(ground, "Mine Bench Landing", vector(4.8, .15, 3.4), rest + vector(0, .075, 0),
+            rgb(173, 159, 128), material.Cobblestone)
+        local bench = piece(ground, "Mine Bench", vector(3.9, .32, 1.4), rest + vector(0, 1.16, 0),
+            timber, material.WoodPlanks, true, nil, CFrame.Angles(0, math.pi, 0), "Seat")
+        bench.CanTouch = true
+        for _, leg in ipairs({-1, 1}) do
+            piece(ground, "Mine Bench Leg", vector(.47, 1.1, 1.12), rest + vector(leg * 1.46, .55, 0),
+                palettes[1].rock, material.Rock)
+        end
+    end
+    World.fieldSign(ground, "Starter Claim Board", vector(x + 10.8, 3.18, 3.5), 7.6,
+        "QUARTZ CLAIM", "Mine ore • Sell it in Meadow")
+    return ground
+end
+
 function World.zone(parent, index, zone, x)
     local palette = palettes[index]
     local folder = Instance.new("Folder")
     folder.Name = zone.Name
+    folder:SetAttribute("BiomeIndex", index)
     folder.Parent = parent
+    mountainBackdrop(folder, index, x)
     local function at(px, py, pz)
         return vector(x + px, py, pz)
     end
 
-    piece(folder, "Bedrock", vector(110, 16, 100), at(0, -8.55, 0), palette.rock, material.Rock, true)
+    local width = index == 1 and config.Meadow.Width or 110
+    local depth = index == 1 and config.Meadow.Depth or 100
+    piece(folder, "Bedrock", vector(width, 16, depth), at(0, -8.55, 0), palette.rock, material.Rock, true)
     if index > 1 then
         piece(folder, "Ground", vector(110, 1, 100), at(0, 0, 0), palette.ground, palette.groundMaterial, true)
     end
-    piece(folder, "Main Trail", vector(9, .08, 81), at(0, .54, 1), palette.trail, material.Cobblestone)
-    piece(folder, "Mine Trail", vector(89, .08, 7), at(0, .54, -20), palette.trail, material.Cobblestone)
+    if index ~= 1 then
+        piece(folder, "Main Trail", vector(9, .08, 81), at(0, .54, 1), palette.trail, material.Cobblestone)
+        piece(folder, "Mine Trail", vector(89, .08, 7), at(0, .54, -20), palette.trail, material.Cobblestone)
+    end
 
     local rng = Random.new(4100 + index)
     for _, side in ipairs({-1, 1}) do
-        for z = -42, 42, 12 do
+        local edge = index == 1 and 60 or 42
+        local shift = index == 1 and 19 or 0
+        for z = -edge, edge, 12 do
             local width = rng:NextNumber(6, 10)
             local height = rng:NextNumber(3, 7)
-            rock(folder, at(side * rng:NextNumber(48, 51), height / 3, z), vector(width, height, 8), palette.rock)
+            rock(folder, at(side * (rng:NextNumber(48, 51) + shift), height / 3, z), vector(width, height, 8), palette.rock)
         end
-        lamp(folder, at(side * 7, .5, -7), zone.Color)
-        lamp(folder, at(side * 7, .5, -33), zone.Color)
+        if index ~= 1 then
+            lamp(folder, at(side * 7, .5, -7), zone.Color)
+            lamp(folder, at(side * 7, .5, -33), zone.Color)
+        end
     end
 
     if index == 1 then
-        piece(folder, "Wayshrine Promenade", vector(88, .1, 12), at(0, .55, 38),
+        piece(folder, "Wayshrine Promenade", vector(120, .1, 13), at(0, .55, 72),
             palette.trail, material.Cobblestone)
         World.plaza(folder)
-        for _, side in ipairs({-1, 1}) do
-            for z = -37, 35, 18 do
-                tree(folder, at(side * rng:NextNumber(40, 46), .5, z), rng:NextNumber(6, 10), rgb(57, 117, 75))
-                for i = 1, 3 do
-                    piece(folder, "Wildflower", vector(.65, .65, .65),
-                        at(side * (40 + i * 2), .85, z + 4), rgb(248, 204, 113), material.Grass, false, Enum.PartType.Ball)
-                end
-            end
-        end
+        World.townHouses(folder)
+        World.overlookPark(folder)
     elseif index == 2 then
         piece(folder, "Cavern Vault", vector(106, 9, 78), at(0, 26, -6), palette.rock, material.Slate, true)
         for _, side in ipairs({-1, 1}) do
@@ -707,9 +1331,6 @@ function World.zone(parent, index, zone, x)
                 rock(folder, at(side * 48, height / 3, z), vector(12, height, 14), palette.rock)
                 rock(folder, at(side * 48, height * .72, z), vector(8, height * .44, 10), palette.ground)
                 shard(folder, at(side * 42, 3.5, z + 3), 7, zone.Color, side * 24)
-                if (z + 41) % 32 == 0 then
-                    pine(folder, at(side * 43, .5, z - 2), rng:NextNumber(8, 12))
-                end
             end
         end
         local overlook = piece(folder, "Frozen Tarn", vector(30, .12, 8), at(0, .57, -44),
@@ -763,27 +1384,81 @@ function World.zone(parent, index, zone, x)
         end
     end
 
-    local accents = {
-        {Name = "Meadow Wildflowers", Color = rgb(249, 187, 111), Material = material.Grass},
-        {Name = "Cavern Glowcaps", Color = rgb(196, 125, 249), Material = material.Neon},
-        {Name = "Frost Bloom", Color = rgb(184, 224, 244), Material = material.Ice},
-        {Name = "Tidal Reeds", Color = rgb(118, 183, 125), Material = material.Grass},
-        {Name = "Emberglass", Color = rgb(222, 113, 76), Material = material.Glass},
-    }
-    local accent = accents[index]
+    return folder
+end
+
+local mineProfiles = {
+    {Name = "Weathered Sandstone", Dark = rgb(107, 94, 71), Light = rgb(142, 123, 90), Material = material.Sandstone},
+    {Name = "Split Amethyst Slate", Dark = rgb(58, 48, 76), Light = rgb(95, 77, 117), Material = material.Slate},
+    {Name = "Glacial Shelf", Dark = rgb(92, 129, 151), Light = rgb(171, 206, 219), Material = material.Ice},
+    {Name = "Waterworn Limestone", Dark = rgb(80, 100, 89), Light = rgb(143, 150, 108), Material = material.Limestone},
+    {Name = "Basalt Slag", Dark = rgb(64, 51, 52), Light = rgb(105, 72, 65), Material = material.Basalt},
+}
+
+local function dressMine(parent, index, at)
+    local finish = mineProfiles[index]
+    local dressing = Instance.new("Folder")
+    dressing.Name = "Mine Details"
+    dressing.Parent = parent
+
+    local ledges = index == 2 and {-18, -30, -48, -63, -74} or {-12, -21, -29}
     for _, side in ipairs({-1, 1}) do
-        for _, z in ipairs({-42, 4, 29}) do
-            for offset = 1, 4 do
-                local height = rng:NextNumber(.6, 1.45)
-                local position = at(side * (39 + rng:NextNumber(-1.5, 1.5)), .5 + height * .45, z + offset * .9)
-                piece(folder, accent.Name, vector(.35, height, .38), position, accent.Color, accent.Material,
-                    false, Enum.PartType.Ball, CFrame.Angles(0, 0, rng:NextNumber(-.4, .4)))
-            end
+        for order, z in ipairs(ledges) do
+            local width = 2.35 + order % 3 * .64
+            local pos = at(side * 39.1, 2.35 + (order % 2) * .83, z)
+            piece(dressing, finish.Name, vector(width, 4.9, 4.2 + order % 3), pos,
+                finish.Dark, finish.Material, false, nil, CFrame.Angles(order * .19, side * .28, side * -.39),
+                "WedgePart")
+            piece(dressing, "Exposed Stratum", vector(2.98, .61, 3.85), pos + vector(side * -.39, 1.06, .25),
+                finish.Light, finish.Material, false, nil, CFrame.Angles(0, -.23 * side, .15 * side))
+            piece(dressing, "Mine Rubble", vector(1.42, .54, 1.2), at(side * 37.1, .78, z + 1.33),
+                finish.Dark, finish.Material, false, nil, CFrame.Angles(-.18, order * .71, .12))
         end
     end
 
-    fillZoneFoliage(folder, index, x)
-    return folder
+    if index == 1 then
+        local center = at(-35.8, 1.18, -10)
+        piece(dressing, "Retired Ore Cart", vector(2.1, .8, 2.68), center,
+            rgb(103, 76, 58), material.WoodPlanks)
+        for _, side in ipairs({-1, 1}) do
+            piece(dressing, "Cart Rim", vector(.13, .34, 2.72), center + vector(side * .94, .48, 0),
+                darkStone, material.Metal)
+            for _, endZ in ipairs({-.81, .81}) do
+                piece(dressing, "Cart Wheel", vector(.28, .53, .53), center + vector(side * 1.01, -.48, endZ),
+                    darkStone, material.Metal, false, Enum.PartType.Cylinder)
+            end
+        end
+    elseif index == 2 then
+        for _, pos in ipairs({{-35.8,-22}, {34.8,-33}, {35.5,-53}, {-35,-69}}) do
+            piece(dressing, "Fractured Slate Shelf", vector(5.42, 1.91, 3.46), at(pos[1], 7.8, pos[2]),
+                finish.Light, finish.Material, false, nil, CFrame.Angles(.33, -.22, .57), "WedgePart")
+        end
+    elseif index == 3 then
+        for _, side in ipairs({-1, 1}) do
+            for offset = 0, 3 do
+                piece(dressing, "Hanging Ice Tooth", vector(1.05, 1.65 + offset % 2 * .65, 1.38),
+                    at(side * (35 + offset * .64), 10.58, -15 - offset * 4.8), finish.Light, material.Ice,
+                    false, nil, CFrame.Angles(math.pi + .2, offset * .67, .21 * side), "WedgePart")
+            end
+        end
+    elseif index == 4 then
+        for _, side in ipairs({-1, 1}) do
+            for block = 1, 3 do
+                piece(dressing, "Collapsed Relief", vector(1.12, .77, 2.03),
+                    at(side * (35.2 + block * .86), 1.13 + block * .12, -31.5 - block * .2),
+                    finish.Light, material.Limestone, false, nil, CFrame.Angles(-.11, block * .29, side * .41))
+            end
+        end
+    else
+        for _, side in ipairs({-1, 1}) do
+            for _, z in ipairs({-15, -21, -28}) do
+                piece(dressing, "Pitted Iron Bracket", vector(.54, 3.22, 1.27), at(side * 38.1, 6.9, z),
+                    rgb(104, 82, 71), material.CorrodedMetal, false, nil, CFrame.Angles(.11, 0, side * .49))
+                piece(dressing, "Cooling Slag Seam", vector(.15, .29, 2.45), at(side * 39, 2.12, z + .7),
+                    rgb(207, 100, 66), material.Neon, false, nil, CFrame.Angles(.14, .11, 0))
+            end
+        end
+    end
 end
 
 function World.cavern(parent, x, routes)
@@ -803,18 +1478,10 @@ function World.cavern(parent, x, routes)
     local function sign(message, px, pz, tint, yaw)
         local post = piece(mine, "Route Sign", vector(5.8, 1.45, .24), at(px, 4.8, pz),
             rgb(52, 41, 58), material.Wood, false, nil, CFrame.Angles(0, yaw or 0, 0))
-        local face = Instance.new("SurfaceGui")
-        face.Face = Enum.NormalId.Back
-        face.LightInfluence = 0
-        face.Parent = post
-        local words = Instance.new("TextLabel")
-        words.Size = UDim2.fromScale(1, 1)
-        words.BackgroundTransparency = 1
-        words.TextColor3 = tint
-        words.TextScaled = true
-        words.Font = Enum.Font.GothamBold
-        words.Text = message
-        words.Parent = face
+        local headline, subtitle = string.match(message, "^(.-)\n(.+)$")
+        signFrame(mine, post)
+        signPosts(post)
+        signText(post, headline or message, subtitle, tint, 44)
     end
 
     piece(mine, "Deep Floor", vector(88, 1, 34), at(0, 0, -67), palettes[2].ground, material.Slate, true)
@@ -880,14 +1547,6 @@ function World.cavern(parent, x, routes)
     sign("Main entrance  ←", 15, -48.4, routes[2].Color, -math.pi / 2)
     sign("Deep lift", -26, -70.3, routes[3].Color)
 
-    local moss = shrubStyles[2]
-    local rng = Random.new(42104)
-    for _, point in ipairs({{-37, -21}, {-35, -40}, {-37, -70}, {-18, -75}, {37, -31}, {37, -53}, {16, -57}}) do
-        local center = at(point[1], .5, point[2])
-        shrub(mine, center, .78, moss, rng)
-        groundCover(mine, center + vector(1.1, 0, .6), moss, rng)
-    end
-
     local surface = piece(mine, "Cavern Lift", vector(5.8, .5, 5.8), at(-7, .8, 1),
         routes[3].Color, material.Metal, true)
     local deep = piece(mine, "Deep Gallery Lift", vector(5.8, .5, 5.8), at(-26, .8, -71),
@@ -895,6 +1554,7 @@ function World.cavern(parent, x, routes)
     for _, lift in ipairs({surface, deep}) do
         light(lift, routes[3].Color, 1.25, 14)
     end
+    dressMine(mine, 2, at)
     return mine, surface, deep
 end
 
@@ -903,13 +1563,28 @@ function World.mine(parent, zone, index, x)
     folder.Name = zone.Name .. " Mine"
     folder.Parent = parent
     local stone = palettes[index].rock
+    local meadow = index == 1
+    local widthScale = meadow and config.Meadow.MineWidthScale or 1
+    local depthScale = meadow and config.Meadow.MineDepthScale or 1
     local function at(px, py, pz)
-        return vector(x + px, py, pz)
+        return vector(x + px * widthScale, py, pz * depthScale)
     end
     local function structure(name, size, position, color, surface)
-        return piece(folder, name, size, position, color, surface, true)
+        return piece(folder, name, vector(size.X * widthScale, size.Y, size.Z * depthScale), position, color, surface, true)
     end
 
+    if meadow then
+        piece(folder, "Meadow Mine Approach", vector(12, .08, 10), vector(x, .55, -6),
+            rgb(189, 166, 124), material.Cobblestone)
+        piece(folder, "Meadow Mine Cross Aisle", vector(95, .08, 7), at(0, .55, -20),
+            rgb(155, 143, 116), material.Cobblestone)
+        for _, side in ipairs({-1, 1}) do
+            structure("Entrance Upright", vector(.94, 8.95, .94), at(side * 6, 5, -5.5), timber, material.Wood)
+            structure("Entrance Footing", vector(1.65, .74, 1.55), at(side * 6, .87, -5.5),
+                rgb(175, 154, 119), material.Limestone)
+            mineLamp(folder, at(side * 5.25, 7.35, -5.4), mineWarm, 22)
+        end
+    end
     structure("Mine Roof", vector(88, 5, 27), at(0, 14.5, -20), stone, material.Rock)
     for _, side in ipairs({-1, 1}) do
         structure("Side Wall", vector(4, 12, 27), at(side * 42, 6.5, -20), stone, material.Rock)
@@ -920,7 +1595,7 @@ function World.mine(parent, zone, index, x)
             if side == 1 then mineLamp(folder, at(0, 8.45, z), zone.Color, 23) end
         end
         for _, wing in ipairs({17, 32}) do
-            mineLamp(folder, at(side * wing, 7.6, -20), zone.Color, 21)
+            mineLamp(folder, at(side * wing, 7.6, -20), zone.Color, meadow and 23 or 21)
         end
         for z = -10, -30, -5 do
             trailMarker(folder, at(side * 2.9, .66, z), mineWarm)
@@ -937,19 +1612,54 @@ function World.mine(parent, zone, index, x)
         piece(folder, "Miner's Trail Inlay", vector(.22, .06, 20), at(side * 3.85, .62, -20),
             trim, material.SmoothPlastic)
     end
-    local header = structure("Mine Entrance", vector(14, 2, 2), at(0, 10, -7), timber, material.Wood)
+    local header = structure("Mine Entrance", vector(14, 2, 2), at(0, 10, meadow and -5.5 or -7),
+        timber, material.Wood)
+    local signFace = header
+    if meadow then
+        local width, height = 15.3, 2.6
+        local mount = header.Position + vector(0, .17, header.Size.Z / 2 + .24)
+        local frame = rgb(89, 59, 42)
+        local brass = rgb(202, 156, 84)
+        signFace = piece(folder, "Meadow Mine Plaque", vector(width, height, .38), mount,
+            rgb(37, 94, 64), material.Plastic)
+        local rim = mount + vector(0, 0, .23)
+        for _, side in ipairs({-1, 1}) do
+            piece(folder, "Plaque Horizontal Frame", vector(width + .3, .18, .29),
+                rim + vector(0, side * height / 2, 0), frame, material.Wood)
+            piece(folder, "Plaque Vertical Frame", vector(.19, height + .23, .29),
+                rim + vector(side * width / 2, 0, 0), frame, material.Wood)
+            piece(folder, "Plaque Gold Inlay", vector(width - .48, .033, .06),
+                rim + vector(0, side * (height / 2 - .2), .025), brass, material.Metal)
+
+            local xPos = side * (width / 2 - 1.1)
+            piece(folder, "Plaque Diamond Setting", vector(.71, .71, .20), rim + vector(xPos, 0, .10),
+                brass, material.Metal, false, nil, CFrame.Angles(0, 0, math.pi / 4))
+            piece(folder, "Plaque Crystal Emblem", vector(.44, .44, .16), rim + vector(xPos, 0, .24),
+                rgb(113, 211, 169), material.SmoothPlastic, false, nil, CFrame.Angles(0, 0, math.pi / 4))
+        end
+    end
     local sign = Instance.new("SurfaceGui")
     sign.Face = Enum.NormalId.Back
     sign.LightInfluence = 0
-    sign.Parent = header
+    sign.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+    sign.PixelsPerStud = 54
+    sign.MaxDistance = meadow and 92 or 70
+    sign.Parent = signFace
     local title = Instance.new("TextLabel")
-    title.Size = UDim2.fromScale(1, 1)
     title.BackgroundTransparency = 1
-    title.Text = string.upper(zone.Name .. " Mine")
-    title.TextColor3 = rgb(255, 232, 174)
+    title.Text = meadow and "MEADOW MINE" or string.upper(zone.Name .. " Mine")
+    title.Position = meadow and UDim2.fromScale(.14, .08) or UDim2.fromScale(.055, .10)
+    title.Size = meadow and UDim2.fromScale(.72, .84) or UDim2.fromScale(.89, .80)
+    title.TextColor3 = meadow and rgb(255, 238, 188) or rgb(255, 232, 174)
     title.TextScaled = true
-    title.Font = Enum.Font.GothamBold
+    title.Font = Enum.Font.SourceSansBold
     title.Parent = sign
+    if meadow then
+        local lettering = Instance.new("UITextSizeConstraint")
+        lettering.MaxTextSize = 73
+        lettering.Parent = title
+    end
+    dressMine(folder, index, at)
     return folder
 end
 
@@ -989,86 +1699,151 @@ end
 local function shopSign(parent, name, position, size, color, yaw)
     local sign = piece(parent, name .. " Sign", size, position, color, material.WoodPlanks,
         false, nil, CFrame.Angles(0, yaw, 0))
-    local face = Instance.new("SurfaceGui")
-    face.Face = Enum.NormalId.Back
-    face.LightInfluence = 0
-    face.MaxDistance = 55
-    face.Parent = sign
-    local lettering = Instance.new("TextLabel")
-    lettering.Position = UDim2.fromScale(.06, .12)
-    lettering.Size = UDim2.fromScale(.88, .76)
-    lettering.BackgroundTransparency = 1
-    lettering.TextColor3 = rgb(255, 247, 220)
-    lettering.TextScaled = true
-    lettering.Font = Enum.Font.GothamBold
-    lettering.Text = name
-    lettering.Parent = face
+    signFrame(parent, sign)
+    signPosts(sign)
+    signText(sign, name, nil, rgb(255, 244, 211), 57)
+end
+
+local function storefront(parent, name, origin, yaw, width, color)
+    local pose = CFrame.new(origin) * CFrame.Angles(0, yaw, 0)
+    local sand = rgb(224, 211, 166)
+    local stone = rgb(168, 169, 161)
+    local function panel(partName, size, offset, tint)
+        local cf = pose * CFrame.new(offset)
+        local part = piece(parent, name .. " " .. partName, size, cf.Position, tint, material.Plastic)
+        part.CFrame = cf
+        return part
+    end
+    local function cap(partName, size, offset, tint)
+        local cf = pose * CFrame.new(offset)
+        local part = piece(parent, "Storefront Cap", size, cf.Position, tint, material.Plastic)
+        part.CFrame = cf
+        part:SetAttribute("Shop", name .. " " .. partName)
+    end
+    panel("Roof Band", vector(width, .58, .67), vector(0, 1.6, 0), color)
+    panel("Trim", vector(width + .24, .18, .71), vector(0, 1.25, 0), sand)
+    cap("Top", vector(width - 1.25, .34, .72), vector(0, 2.06, 0), color)
+    for _, side in ipairs({-1, 1}) do
+        local x = side * (width / 2 - .29)
+        panel("Post", vector(.57, 4.25, .67), vector(x, -.72, 0), color)
+        panel("Foot", vector(.87, .53, .88), vector(x, -2.93, 0), stone)
+        panel("Capstone", vector(.78, .36, .84), vector(x, 1.26, 0), sand)
+    end
+end
+
+function World.fieldSign(parent, name, position, width, headline, subtitle, yaw)
+    local board = piece(parent, name, vector(width, 2.20, .26), position,
+        rgb(46, 65, 56), material.WoodPlanks, false, nil, CFrame.Angles(0, yaw or 0, 0))
+    signFrame(parent, board)
+    signPosts(board)
+    return signText(board, headline, subtitle, rgb(255, 239, 195), 48)
+end
+
+function World.marketSign(parent, anchor, headline, subtitle)
+    local pos = anchor.Position
+    local bearing = vector(-pos.X, 0, 20 - pos.Z)
+    local direction = bearing.Magnitude > 0 and bearing / bearing.Magnitude or vector(0, 0, -1)
+    local offset = .55 + math.abs(direction.X) * anchor.Size.X / 2 + math.abs(direction.Z) * anchor.Size.Z / 2
+    local display = pos + direction * offset
+    return World.fieldSign(parent, anchor.Name .. " Board", vector(display.X, 4.35, display.Z), 6.8,
+        headline, subtitle, math.atan2(direction.X, direction.Z))
+end
+
+function World.stationSign(anchor, headline, subtitle)
+    local pos = anchor.Position
+    local facing = pos.Z > 0 and -1 or 1
+    local board = vector(pos.X, math.max(3.9, pos.Y + 1.42), pos.Z + facing * .52)
+    World.fieldSign(anchor.Parent, anchor.Name .. " Board", board, 6.85, headline, subtitle,
+        facing < 0 and math.pi or 0)
+end
+
+function World.communityCorner(parent)
+    local corner = Instance.new("Folder")
+    corner.Name = "Community Corner"
+    corner.Parent = parent
+    World.fieldSign(corner, "Meadow Noticeboard", vector(-19, 3.15, 13.3), 8.6,
+        "MEADOW NOTICEBOARD", "First commission? Visit the guild.")
+    piece(corner, "Noticeboard Base", vector(10.8, .11, 3.1), vector(-19, .69, 13.5),
+        rgb(188, 177, 148), material.Plastic)
+    for _, side in ipairs({-1, 1}) do
+        local base = vector(-19 + side * 5.03, .52, 13.45)
+        piece(corner, "Community Planter", vector(1.24, .67, 1.2), base + vector(0, .32, 0),
+            rgb(130, 89, 64), material.WoodPlanks)
+        shrub(corner, base + vector(0, .66, 0), .57, shrubStyles[1], Random.new(1077 + side))
+    end
+    local crate = vector(-12.7, 1.04, 26.2)
+    piece(corner, "Shared Supply Crate", vector(1.73, 1.04, 1.33), crate,
+        rgb(152, 108, 70), material.WoodPlanks)
+    piece(corner, "Supply Crate Lid", vector(1.8, .12, 1.41), crate + vector(0, .55, 0),
+        rgb(176, 135, 86), material.Wood)
+
+    local cart = vector(-28.2, .62, 16.8)
+    piece(corner, "Guild Delivery Cart", vector(2.8, .26, 3.1), cart + vector(0, .93, 0), timber, material.WoodPlanks)
+    piece(corner, "Cart Delivery Parcel", vector(1.8, 1.05, 1.85), cart + vector(0, 1.58, -.15),
+        rgb(188, 145, 87), material.WoodPlanks)
+    for _, side in ipairs({-1, 1}) do
+        piece(corner, "Delivery Cart Wheel", vector(.26, 1.22, 1.22), cart + vector(side * 1.38, .61, .38),
+            darkStone, material.Wood, false, Enum.PartType.Cylinder)
+        piece(corner, "Delivery Cart Handle", vector(.23, .21, 1.48), cart + vector(side * 1.11, .88, 2.19),
+            timber, material.Wood)
+    end
 end
 
 function World.meadowLandmarks(parent)
-    local timberDark = rgb(104, 76, 57)
-    local sandstone = rgb(179, 160, 128)
-    local cream = rgb(237, 213, 157)
-    local green = rgb(76, 136, 101)
-    for _, side in ipairs({-1, 1}) do
-        local px = side * 6.9
-        piece(parent, "Trailhead Footing", vector(2.15, .68, 2.25),
-            vector(px, .84, -5), sandstone, material.Limestone)
-        piece(parent, "Trailhead Upright", vector(.69, 8.25, .66),
-            vector(px, 4.75, -5), timberDark, material.Wood)
-        local signal = piece(parent, "Trailhead Lantern", vector(.81, .94, .78),
-            vector(side * 6.14, 5.7, -4.5), cream, material.Neon)
-        light(signal, cream, 1.4, 17)
-        for step = 1, 3 do
-            trailMarker(parent, vector(side * 2.85, .635, -2 - step * 1.35), cream)
-        end
-    end
-    piece(parent, "Trailhead Crossbeam", vector(14.8, .43, .64),
-        vector(0, 8.8, -5), timberDark, material.WoodPlanks)
-    shopSign(parent, "MEADOW MINE", vector(0, 8.8, -4.63), vector(7.4, 1.42, .3), green, 0)
-
-    shopSign(parent, "SELL CRYSTALS", vector(-17.7, 5.25, 0.15), vector(5.1, 1.3, .22), rgb(127, 82, 46), math.pi / 2)
-    shopSign(parent, "PICKAXE FORGE", vector(14.85, 5.3, -.2), vector(5.35, 1.3, .22), rgb(56, 88, 124), -math.pi / 2)
-    shopSign(parent, "GUILD COMMISSIONS", vector(-29.4, 5.5, 8.1), vector(5.35, 1.35, .24), rgb(44, 100, 86), math.pi / 2)
+    local sell = parent:FindFirstChild("Sell Crystals")
+    local forge = parent:FindFirstChild("Pickaxe Forge")
+    local guild = parent:FindFirstChild("Guild Commissions")
+    storefront(parent, sell.Name, sell.Position + vector(4.91, 1.44, 0), math.pi / 2, 10.6, rgb(177, 109, 54))
+    storefront(parent, forge.Name, forge.Position + vector(0, 1.44, -2.42), math.pi, 10.6, rgb(76, 117, 171))
+    storefront(parent, guild.Name, guild.Position + vector(4.13, 1.44, 0), math.pi / 2, 8.8, rgb(78, 134, 93))
+    shopSign(parent, "SELL CRYSTALS", sell.Position + vector(5.38, 2.96, 0),
+        vector(6.25, 1.48, .22), rgb(93, 59, 40), math.pi / 2)
+    shopSign(parent, "PICKAXE FORGE", forge.Position + vector(0, 2.96, -2.88),
+        vector(6.5, 1.48, .22), rgb(37, 62, 82), math.pi)
+    shopSign(parent, "GUILD COMMISSIONS", guild.Position + vector(4.60, 2.96, 0),
+        vector(7.2, 1.48, .24), rgb(36, 70, 60), math.pi / 2)
 end
 
 function World.welcome(parent)
     local cream = rgb(251, 228, 177)
-    local green = rgb(51, 92, 78)
-    local function board(name, lines, position, width, yaw)
+    local green = rgb(27, 58, 47)
+    local function board(name, headline, subtitle, position, width, yaw)
         local orientation = CFrame.Angles(0, yaw or 0, 0)
         local panel = piece(parent, name, vector(width, 2.35, .28), position, green,
             material.WoodPlanks, false, nil, orientation)
-        for _, side in ipairs({-1, 1}) do
-            local support = panel.CFrame * CFrame.new(side * (width / 2 - .18), -1.14, .16)
-            piece(parent, "Sign Post", vector(.32, 3.1, .35), support.Position, timber, material.Wood,
-                false, nil, orientation)
-        end
-        local sign = Instance.new("SurfaceGui")
-        sign.Face = Enum.NormalId.Back
-        sign.CanvasSize = Vector2.new(480, 152)
-        sign.MaxDistance = 55
-        sign.LightInfluence = .3
-        sign.Parent = panel
-        local lettering = Instance.new("TextLabel")
-        lettering.Position = UDim2.fromScale(.055, .07)
-        lettering.Size = UDim2.fromScale(.89, .86)
-        lettering.BackgroundTransparency = 1
-        lettering.Font = Enum.Font.GothamBold
-        lettering.TextColor3 = cream
-        lettering.Text = lines
-        lettering.TextScaled = true
-        lettering.TextWrapped = true
-        lettering.Parent = sign
+        signFrame(parent, panel)
+        signPosts(panel)
+        signText(panel, headline, subtitle, cream, 58)
     end
 
-    board("Meadow Welcome", "Welcome to Meadow\nMine crystals. Sell your haul. Upgrade your gear.", vector(-10.5, 3.22, -3.3), 8, -.22)
-    board("Market Directions", "← Sell crystals     Mine ↑     Forge →", vector(10.6, 3.12, -3.5), 8, .23)
-    board("Wayshrine Directions", "Market Square  •  Crates  •  Wayshrines", vector(-8.2, 3.26, 21.4), 8.4, math.pi)
+    board("Meadow Welcome", "Welcome to Meadow", "First stop • Guild Commissions", vector(-10.5, 3.22, -3.3), 8.6, -.22)
+    board("Market Directions", "← Services    Shops →", "Wayshrines ahead", vector(10.6, 3.12, -3.5), 8, .23)
+    board("Wayshrine Directions", "Wayshrines ↑", "Market Square ↓", vector(-10.5, 3.26, 64), 8.4, math.pi)
+    World.fieldSign(parent, "Miners’ Services Board", vector(-23.5, 3.45, 7.6), 10.4,
+        "MINERS’ SERVICES", "Guild • Sell • Forge • Bags • Geodes", 1.94)
+    World.fieldSign(parent, "Market Shops Board", vector(23.5, 3.45, 7.6), 10.4,
+        "MARKET SHOPS", "Crates • Styles • Compass", -1.94)
+    piece(parent, "Welcome Walk", vector(8.6, .10, 11.5), vector(0, .67, 10.25),
+        rgb(196, 179, 149), material.Cobblestone)
+    for _, side in ipairs({-1, 1}) do
+        lamp(parent, vector(side * 6.3, .62, 13.9), rgb(255, 222, 157))
+        for z = 5.9, 15, 2.7 do
+            piece(parent, "Welcome Walk Inlay", vector(.66, .05, .66), vector(side * 3.23, .738, z),
+                rgb(103, 148, 119), material.Plastic, false, nil, CFrame.Angles(0, math.pi / 4, 0))
+        end
+    end
+    local pavedBand = {
+        rgb(210, 172, 115),
+        rgb(144, 179, 205),
+    }
+    for index, side in ipairs({-1, 1}) do
+        piece(parent, "Market Lane Inlay", vector(14.2, .055, .33), vector(side * 17.6, .68, 4.21),
+            pavedBand[index], material.Limestone)
+    end
     local path = rgb(209, 179, 130)
     for _, side in ipairs({-1, 1}) do
-        for step = 1, 4 do
-            piece(parent, "Market Stepping Stone", vector(2.8, .06, 2.15), vector(side * (5.2 + step * 2.15), .56, .4),
+        for step = 1, 8 do
+            piece(parent, "Market Stepping Stone", vector(2.75, .06, 2.15), vector(side * (5.2 + step * 3), .655, 2.75),
                 path, material.Limestone, false, nil, CFrame.Angles(0, step % 2 * .12, 0))
         end
         local center = vector(side * 14, .5, -3.7)
@@ -1081,11 +1856,41 @@ function World.welcome(parent)
     end
 end
 
+local function commons(parent)
+    local garden = Instance.new("Folder")
+    garden.Name = "Miner’s Commons"
+    garden.Parent = parent
+    local stone = rgb(203, 204, 184)
+    local board = rgb(126, 88, 57)
+    local siding = rgb(87, 130, 88)
+    for _, side in ipairs({-1, 1}) do
+        local center = vector(side * 15.3, .5, 23)
+        piece(garden, "Commons Pavers", vector(10.5, .16, 7.25), center + vector(0, .14, 0),
+            stone, material.Plastic)
+        piece(garden, "Picnic Table", vector(5.4, .38, 2.05), center + vector(0, 1.86, 0),
+            board, material.WoodPlanks, true)
+        for _, foot in ipairs({-1, 1}) do
+            piece(garden, "Picnic Table Leg", vector(.52, 1.65, 1.62),
+                center + vector(foot * 1.91, .91, 0), siding, material.Plastic)
+        end
+        for _, edge in ipairs({-1, 1}) do
+            local seat = piece(garden, "Commons Seat", vector(4.65, .33, 1.36),
+                center + vector(0, .91, edge * 2.03), board, material.WoodPlanks,
+                true, nil, CFrame.Angles(0, edge < 0 and math.pi or 0, 0), "Seat")
+            seat.CanTouch = true
+            for _, leg in ipairs({-1, 1}) do
+                piece(garden, "Seat Support", vector(.37, .84, .84),
+                    center + vector(leg * 1.7, .46, edge * 2.03), siding, material.Plastic)
+            end
+        end
+    end
+end
+
 function World.plaza(parent)
-    local center = vector(0, 1, 13)
-    local basin = piece(parent, "Fountain Basin", vector(1, 10, 10), center, rgb(99, 126, 138),
+    local center = vector(0, 1, 23)
+    local basin = piece(parent, "Fountain Basin", vector(1, 12, 12), center, rgb(99, 126, 138),
         material.Marble, true, Enum.PartType.Cylinder, CFrame.Angles(0, 0, math.pi / 2))
-    local water = piece(parent, "Fountain Pool", vector(.08, 8.6, 8.6), center + vector(0, .54, 0),
+    local water = piece(parent, "Fountain Pool", vector(.08, 10.05, 10.05), center + vector(0, .54, 0),
         rgb(72, 189, 209), material.Glass, false, Enum.PartType.Cylinder, CFrame.Angles(0, 0, math.pi / 2))
     water.Reflectance = .16
     local spout = piece(parent, "Fountain Spout", vector(1.1, 1.5, 1.1), basin.Position + vector(0, 1.1, 0),
@@ -1094,15 +1899,23 @@ function World.plaza(parent)
         NumberRange.new(.55, .85), NumberSequence.new(.23, .08))
     spray.Acceleration = vector(0, -17, 0)
     spray.SpreadAngle = Vector2.new(48, 48)
-    piece(parent, "Market Square", vector(62, .12, 30), vector(0, .56, 7), rgb(180, 155, 125), material.Cobblestone)
+    piece(parent, "Market Square", vector(124, .12, 62), vector(0, .56, 26), rgb(176, 177, 168), material.Plastic)
     for _, side in ipairs({-1, 1}) do
-        piece(parent, "Plaza Border", vector(61, .12, 1), vector(0, .64, 7 + side * 14),
+        for _, z in ipairs({1, 11, 27, 41, 54}) do
+            piece(parent, "Plaza Kerb", vector(1.5, .25, 7), vector(side * 61.4, .63, z),
+                rgb(217, 218, 200), material.Plastic)
+        end
+    end
+    for _, side in ipairs({-1, 1}) do
+        piece(parent, "Plaza Border", vector(121, .12, 1), vector(0, .64, 26 + side * 30),
             rgb(219, 199, 161), material.Limestone)
-        for _, z in ipairs({-6, 21}) do
-            local position = vector(side * 29, .5, z)
+        for _, z in ipairs({-1, 54}) do
+            local position = vector(side * 47, .5, z)
             lamp(parent, position, rgb(255, 188, 107))
-            piece(parent, "Bunting Pole", vector(.25, 2, .25), vector(side * 28.8, 6.3, z), timber, material.Wood)
-            piece(parent, "Pennant Tie", vector(2.9, .065, .065), vector(side * 27.35, 7.26, z), timber, material.Fabric)
+            if z == 54 then
+                piece(parent, "Bunting Pole", vector(.25, 2, .25), vector(side * 46.8, 6.3, z), timber, material.Wood)
+                piece(parent, "Pennant Tie", vector(2.9, .065, .065), vector(side * 45.35, 7.26, z), timber, material.Fabric)
+            end
             piece(parent, "Flower Box", vector(2.5, .8, 2.5), position + vector(0, .4, 0), timber, material.Wood, true)
             for index = 1, 4 do
                 piece(parent, "Market Flowers", vector(.5, .7, .5),
@@ -1111,37 +1924,30 @@ function World.plaza(parent)
             end
         end
     end
-    for _, side in ipairs({-1, 1}) do
-        local spot = vector(side * 11.5, .5, 15)
-        local seat = piece(parent, "Market Bench", vector(4.6, .4, 1.65), spot + vector(0, 1, 0),
-            timber, material.WoodPlanks, true, nil, nil, "Seat")
-        seat.CanTouch = true
-        for _, foot in ipairs({-1, 1}) do
-            piece(parent, "Bench Leg", vector(.38, .8, 1.3), spot + vector(foot * 1.65, .4, 0),
-                darkStone, material.Slate)
-        end
-        piece(parent, "Bench Back", vector(4.6, .88, .23), seat.Position + vector(0, .63, .74),
-            timber, material.WoodPlanks)
-    end
-    local bunting = {rgb(255, 167, 82), rgb(92, 218, 204), rgb(246, 117, 162), rgb(157, 138, 238)}
-    for _, z in ipairs({-6, 21}) do
-        for index = -7, 7 do
-            local height = 5.7 + math.abs(index) * .16
-            piece(parent, "Pennant", vector(1.25, .95, .15), vector(index * 3.7, height, z),
-                bunting[index % #bunting + 1], material.Fabric, false, nil, CFrame.Angles(0, 0, index * -.025))
-            if index < 7 then
-                local from = vector(index * 3.7, height + .44, z)
-                local to = vector((index + 1) * 3.7, 6.14 + math.abs(index + 1) * .16, z)
-                local cord = piece(parent, "Pennant Cord", vector(.055, .055, (to - from).Magnitude),
-                    (from + to) / 2, timber, material.Fabric)
-                cord.CFrame = CFrame.lookAt((from + to) / 2, to)
-            end
+    commons(parent)
+    piece(parent, "Wayshrine Approach", vector(12, .12, 11), vector(0, .56, 62),
+        rgb(164, 141, 114), material.Cobblestone)
+    piece(parent, "Market Terrace", vector(72, .085, 11), vector(0, .625, 61),
+        rgb(187, 181, 159), material.Plastic)
+    local bunting = {rgb(235, 181, 71), rgb(103, 155, 223), rgb(198, 89, 85), rgb(110, 173, 101)}
+    local z = 54
+    for index = -7, 7 do
+        local height = 5.7 + math.abs(index) * .16
+        piece(parent, "Pennant", vector(1.25, .95, .15), vector(index * 6.15, height, z),
+            bunting[index % #bunting + 1], material.Fabric, false, nil, CFrame.Angles(0, 0, index * -.025))
+        if index < 7 then
+            local from = vector(index * 6.15, height + .44, z)
+            local to = vector((index + 1) * 6.15, 6.14 + math.abs(index + 1) * .16, z)
+            local cord = piece(parent, "Pennant Cord", vector(.055, .055, (to - from).Magnitude),
+                (from + to) / 2, timber, material.Fabric)
+            cord.CFrame = CFrame.lookAt((from + to) / 2, to)
         end
     end
 end
 
 function World.landmark(parent, zone, x, index)
     local position = vector(x + (index % 2 == 0 and -31 or 31), 2.3, -39)
+    if index == 1 then position = vector(x + 46, 2.3, -54) end
     if index == 2 then position = vector(x + 27, 2.3, -73) end
     piece(parent, "Survey Platform", vector(10, .6, 8), position - vector(0, 1.5, 0),
         palettes[index].trail, material.Cobblestone, true)
@@ -1153,24 +1959,337 @@ function World.landmark(parent, zone, x, index)
     return beacon
 end
 
-function World.station(parent, anchor, color)
-    local position = anchor.Position
-    for _, dx in ipairs({-4.15, 4.15}) do
-        piece(parent, "Canopy Support", vector(.55, 6, .55), position + vector(dx, 1.5, 3.8), timber, material.Wood, true)
+function World.townHouses(parent)
+    local row = Instance.new("Folder")
+    row.Name = "Meadow Houses"
+    row.Parent = parent
+    local stucco = {rgb(213, 184, 133), rgb(161, 194, 168), rgb(187, 151, 134), rgb(183, 190, 211)}
+    local roof = {rgb(157, 73, 64), rgb(81, 109, 133), rgb(129, 87, 72), rgb(98, 110, 130)}
+    local trim = rgb(232, 221, 185)
+    for _, side in ipairs({-1, 1}) do
+        piece(row, "Town Sidewalk", vector(3.35, .15, 105), vector(side * 62.65, .65, 52),
+            rgb(184, 186, 173), material.Plastic)
+        for index, z in ipairs({9, 26, 44, 61, 79, 97}) do
+            local house = Instance.new("Model")
+            house.Name = "Meadow House " .. (side == -1 and index or index + 6)
+            house.Parent = row
+            local pose = CFrame.new(side * 68.5, .5, z) * CFrame.Angles(0, -side * math.pi / 2, 0)
+            local width = index % 2 == 0 and 10.6 or 11.7
+            local height = index % 2 == 0 and 6.5 or 7.25
+            local function detail(name, size, offset, color, surface, solid)
+                local cf = pose * CFrame.new(offset)
+                local object = piece(house, name, size, cf.Position, color, surface, solid)
+                object.CFrame = cf
+                return object
+            end
+            detail("House Foundation", vector(width + .36, .54, 8.7), vector(0, .27, 0),
+                rgb(116, 123, 117), material.Concrete, true)
+            local scheme = (index + (side == 1 and 1 or 0) - 1) % #stucco + 1
+            detail("House Shell", vector(width, height, 8.35), vector(0, height / 2 + .33, 0),
+                stucco[scheme], material.Plastic, true)
+            for level = 1, 3 do
+                detail("Stepped Roof", vector(width + 1, .62, 9.2 - level * 1.90),
+                    vector(0, height + level * .59, 0), roof[scheme], material.Plastic, true)
+            end
+            detail("Roof Eaves", vector(width + 1.15, .33, 9.3), vector(0, height + .38, 0),
+                roof[scheme], material.Plastic, true)
+            detail("Closed House Door", vector(1.81, 3.25, .17), vector(-.55, 1.80, 4.23),
+                roof[scheme], material.WoodPlanks)
+            detail("Door Knob", vector(.11, .12, .12), vector(.07, 1.64, 4.38),
+                rgb(222, 176, 98), material.Metal)
+            detail("Door Lintel", vector(2.17, .17, .18), vector(-.55, 3.49, 4.25), trim, material.Plastic)
+            detail("Door Step", vector(2.53, .24, 1.14), vector(-.55, .14, 4.7), trim, material.Concrete, true)
+            for _, windowX in ipairs({-width * .31, width * .30}) do
+                detail("Window Frame", vector(1.69, 1.62, .16), vector(windowX, height * .59, 4.23),
+                    trim, material.Plastic)
+                detail("Window Pane", vector(1.43, 1.35, .08), vector(windowX, height * .59, 4.34),
+                    rgb(123, 162, 182), material.SmoothPlastic)
+                detail("Window Crossbar", vector(1.49, .10, .075), vector(windowX, height * .59, 4.39),
+                    trim, material.Plastic)
+            end
+            if index % 2 == 1 then
+                detail("Porch Bench", vector(2.4, .24, .8), vector(2.9, .98, 4.86),
+                    timber, material.WoodPlanks)
+                detail("Bench Legs", vector(1.94, .71, .66), vector(2.9, .43, 4.86), timber, material.Wood)
+                detail("Porch Parcel", vector(.77, .56, .72), vector(3.25, 1.38, 4.82),
+                    rgb(184, 151, 99), material.WoodPlanks)
+            else
+                detail("Window Flower Box", vector(1.9, .38, .45), vector(width * .30, height * .59 - .85, 4.53),
+                    timber, material.WoodPlanks)
+                for bloom = -1, 1 do
+                    detail("Window Blossom", vector(.18, .34, .21),
+                        vector(width * .30 + bloom * .46, height * .59 - .58, 4.58),
+                        bloom == 0 and rgb(237, 175, 104) or rgb(220, 133, 136), material.Grass)
+                end
+            end
+            if index == 2 or index == 4 or index == 6 then
+                detail("Chimney", vector(1.2, 2.7, 1.17), vector(width * .27, height + 1.51, -1.52),
+                    rgb(148, 105, 87), material.Brick, true)
+                detail("Chimney Cap", vector(1.43, .20, 1.43), vector(width * .27, height + 2.9, -1.52),
+                    rgb(173, 138, 112), material.Plastic)
+                if index == 2 or index == 6 then
+                    local smoke = Instance.new("Smoke")
+                    smoke.Color = rgb(223, 225, 223)
+                    smoke.Opacity = .12
+                    smoke.RiseVelocity = 2.2
+                    smoke.Size = 2.8
+                    local vent = detail("Chimney Vent", vector(.11, .11, .11),
+                        vector(width * .27, height + 3.04, -1.52), trim, material.Plastic)
+                    vent.Transparency = 1
+                    smoke.Parent = vent
+                end
+            end
+        end
     end
-    piece(parent, "Canopy", vector(10, .45, 9), position + vector(0, 4.7, 0), color, material.Fabric, true)
-    piece(parent, "Counter Trim", vector(9.3, .4, 9.3), position + vector(0, 1.85, 0), timber, material.Wood)
-    for stripe = -4, 4 do
-        local fabric = stripe % 2 == 0 and color or rgb(246, 222, 178)
-        piece(parent, "Awning Stripe", vector(1.1, .2, 3.5), position + vector(stripe * 1.1, 4.2, -4.45),
-            fabric, material.Fabric, false, nil, CFrame.Angles(math.rad(-12), 0, 0))
-    end
-    local accent = piece(parent, "Shop Emblem", vector(1.55, 1.55, .45), position + vector(0, 2.65, -4.8),
-        color, material.Neon, false, nil, CFrame.Angles(0, 0, math.rad(45)))
-    light(accent, color, 1.3, 10)
 end
 
-function World.forge(parent, anchor, picks)
+function World.overlookPark(parent)
+    local park = Instance.new("Folder")
+    park.Name = "Overlook Park"
+    park.Parent = parent
+    local buff = rgb(209, 194, 146)
+    local grass = rgb(101, 150, 78)
+    local skyBlue = rgb(89, 165, 196)
+    local shade = rgb(79, 106, 91)
+    -- Keep the central lane continuous through the wayshrines and into the park.
+    piece(park, "Overlook Path", vector(9.6, .12, 31), vector(0, .56, 91.2), buff, material.Cobblestone)
+    piece(park, "Park Crosswalk", vector(83, .12, 4.8), vector(0, .57, 86), buff, material.Cobblestone)
+    piece(park, "Overlook Lawn", vector(88, .08, 23), vector(0, .53, 96), grass, material.Plastic)
+    shopSign(park, "OVERLOOK PARK", vector(12, 3.18, 83.8), vector(7.2, 1.5, .24), shade, math.pi)
+
+    piece(park, "Pond Stone Rim", vector(22.9, .28, 14.7), vector(-18.8, .69, 96), shade, material.Slate)
+    local water = piece(park, "Overlook Pond", vector(21.6, .13, 13.5), vector(-18.8, .86, 96),
+        skyBlue, material.Glass)
+    water.Transparency = .17
+    for _, pos in ipairs({{-26.4, 92.7}, {-20.5, 99.2}, {-13.1, 94.2}}) do
+        piece(park, "Pond Lily Pad", vector(.12, 1.25, 1.25), vector(pos[1], .99, pos[2]),
+            rgb(80, 151, 93), material.Plastic, false, Enum.PartType.Cylinder, CFrame.Angles(0, 0, math.pi / 2))
+    end
+    for index = 1, 2 do
+        local center = vector(-18 - index * 1.65, 1.10, 93.9 + index * 1.72)
+        local body = piece(park, "Pond Duck", vector(.58, .38, .84), center,
+            rgb(244, 218, 137), material.Plastic)
+        local head = piece(park, "Duck Head", vector(.38, .35, .38), center + vector(0, .25, -.33),
+            rgb(244, 218, 137), material.Plastic)
+        local bill = piece(park, "Duck Bill", vector(.28, .11, .28), center + vector(0, .19, -.59),
+            rgb(223, 141, 65), material.Plastic)
+        for _, part in ipairs({body, head, bill}) do
+            local motion = TweenService:Create(part, TweenInfo.new(1.2 + .25 * index, Enum.EasingStyle.Sine,
+                Enum.EasingDirection.InOut, -1, true), { Position = part.Position + vector(index * .33, .17, -.45) })
+            motion:Play()
+        end
+    end
+
+    local shelter = vector(25.4, .5, 96.4)
+    piece(park, "Lookout Patio", vector(14.5, .28, 10.6), shelter + vector(0, .15, 0), buff, material.Cobblestone)
+    for _, side in ipairs({-1, 1}) do
+        for _, edge in ipairs({-1, 1}) do
+            piece(park, "Lookout Post", vector(.59, 6.25, .58), shelter + vector(side * 6.3, 3.28, edge * 4.49),
+                timber, material.Wood, true)
+        end
+        local seat = piece(park, "Lookout Bench", vector(3.6, .32, 1.35), shelter + vector(side * 3.95, 1.05, 1.9),
+            timber, material.WoodPlanks, true, nil, nil, "Seat")
+        seat.CanTouch = true
+        piece(park, "Lookout Rail", vector(13.2, .27, .24), shelter + vector(0, 2.71 + side * .39, 4.51),
+            timber, material.Wood)
+    end
+    piece(park, "Lookout Roof", vector(14.1, .52, 10.4), shelter + vector(0, 6.65, 0),
+        rgb(123, 87, 66), material.Plastic, true)
+    piece(park, "Lookout Roof Cap", vector(13.4, .30, 7.1), shelter + vector(0, 7.01, 0),
+        rgb(159, 119, 83), material.Plastic)
+    lamp(park, vector(10, .5, 91), rgb(245, 219, 151))
+    lamp(park, vector(-10, .5, 104), rgb(245, 219, 151))
+end
+
+local plantingGround = {
+    ["Ground"] = true,
+    ["Deep Floor"] = true,
+    ["Starter Mine Ground"] = true,
+}
+
+local function footprint(part)
+    local cf, size = part.CFrame, part.Size
+    local right, up, look = cf.RightVector, cf.UpVector, cf.LookVector
+    return vector(
+        (math.abs(right.X) * size.X + math.abs(up.X) * size.Y + math.abs(look.X) * size.Z) / 2,
+        (math.abs(right.Y) * size.X + math.abs(up.Y) * size.Y + math.abs(look.Y) * size.Z) / 2,
+        (math.abs(right.Z) * size.X + math.abs(up.Z) * size.Y + math.abs(look.Z) * size.Z) / 2
+    )
+end
+
+local function plantingArea(parent, scenery, x, style, seed)
+    local folder = Instance.new("Folder")
+    folder.Name = "Foliage"
+    folder.Parent = parent
+    local bounds = {}
+    local market
+    local lawn
+    for _, part in ipairs(scenery) do
+        if part:IsA("BasePart") and math.abs(part.Position.X - x) < 130 then
+            local radius = footprint(part)
+            local center = part.Position
+            if part.Name == "Market Square" then
+                market = { Center = center, Radius = radius }
+            elseif part.Name == "Overlook Lawn" then
+                lawn = { Center = center, Radius = radius }
+            elseif not plantingGround[part.Name] and center.Y + radius.Y > .51 and center.Y - radius.Y < 3.4 then
+                table.insert(bounds, { Center = center, Radius = radius })
+            end
+        end
+    end
+
+    local function overlaps(area, position, spanX, spanZ, gap)
+        return math.abs(area.Center.X - position.X) < area.Radius.X + spanX + gap
+            and math.abs(area.Center.Z - position.Z) < area.Radius.Z + spanZ + gap
+    end
+    local function clear(position, spanX, spanZ, inPlanter)
+        if market and not inPlanter and overlaps(market, position, spanX, spanZ, .5) then return false end
+        for _, area in ipairs(bounds) do
+            if overlaps(area, position, spanX, spanZ, .48) then return false end
+        end
+        return true
+    end
+    local function surface(px, pz, spanX, spanZ)
+        local position = vector(x + px, .5, pz)
+        if not lawn then return position end
+        if not overlaps(lawn, position, spanX, spanZ, .04) then return position end
+        if math.abs(position.X - lawn.Center.X) + spanX <= lawn.Radius.X
+            and math.abs(position.Z - lawn.Center.Z) + spanZ <= lawn.Radius.Z then
+            return vector(position.X, lawn.Center.Y + lawn.Radius.Y, position.Z)
+        end
+        return nil
+    end
+
+    local rng = Random.new(seed)
+    local function patch(px, pz, size)
+        local span = math.max(2.23 * size, 1.65 * size + .64)
+        local position = surface(px, pz, span, span)
+        if not position or not clear(position, span, span) then return end
+        shrub(folder, position, size, style, rng)
+        for _, side in ipairs({-1, 1}) do
+            local offset = vector(side * 1.65, 0, rng:NextNumber(.77, 1.34)) * size
+            groundCover(folder, position + offset, style, rng)
+            local height = rng:NextNumber(.48, .97) * size
+            piece(folder, style.Sprout, vector(.28, height, .27),
+                position + vector(-side * .49 * size, height * .5, -1.77 * size), style.Accent,
+                style.Surface, false, Enum.PartType.Ball)
+        end
+    end
+    local function canopy(px, pz, height, snowy)
+        local span = height * .86
+        local position = surface(px, pz, span, span)
+        if not position or not clear(position, span, span) then return end
+        if snowy then
+            pine(parent, position, height)
+        else
+            tree(parent, position, height, rgb(64, 123, 75):Lerp(rgb(105, 145, 71), rng:NextNumber(.05, .66)))
+        end
+        -- Keep neighbouring planting beds clear of the tree's root flare.
+        table.insert(bounds, { Center = position, Radius = vector(height * .22, 0, height * .22) })
+    end
+    local function planter(px, pz)
+        local position = vector(x + px, .62, pz)
+        if not clear(position, 3.75, 1.82, true) then return end
+        piece(folder, "Market Planter", vector(7.5, .62, 3.64), position + vector(0, .31, 0),
+            rgb(127, 88, 58), material.WoodPlanks, true)
+        piece(folder, "Planter Soil", vector(7.1, .14, 3.23), position + vector(0, .69, 0),
+            rgb(95, 68, 49), material.Ground)
+        for _, side in ipairs({-1, 1}) do
+            shrub(folder, position + vector(side * 1.76, .76, .02), .72, style, rng)
+        end
+        groundCover(folder, position + vector(0, .76, 0), style, rng)
+    end
+    return patch, canopy, planter
+end
+
+function World.landscape(world)
+    local scenery = world:GetDescendants()
+    local meadow = world:FindFirstChild(config.Zones[1].Name)
+    local patch, canopy, planter = plantingArea(meadow, scenery, 0, shrubStyles[1], 6131)
+    for _, side in ipairs({-1, 1}) do
+        for _, point in ipairs({{19,-29}, {39,-20}, {47,-48}, {23,-58}, {9,-78}, {36,-84},
+            {65,-66}, {64,-31}, {82,-47}, {82,-15}, {82,14}, {82,48}, {82,77}, {82,99}, {49,96}, {39,96}}) do
+            canopy(side * point[1], point[2], 7.8)
+        end
+        for _, point in ipairs({{8,-19}, {18,-17}, {27,-23}, {34,-32}, {12,-46}, {29,-49}, {58,-16}, {72,-19},
+            {18,-72}, {58,-76}, {53,-91}, {16,-96}, {77,-89}, {75,-58}, {60,-56},
+            {79,3}, {78,26}, {81,35}, {77,62}, {80,90}, {73,105}, {53,106}, {52,81},
+            {33,83}, {30,105}, {10,99}, {13,91}, {38,92}}) do
+            patch(side * point[1], point[2], 1.04)
+        end
+        planter(side * 13.5, 36)
+        planter(side * 12.5, 51)
+    end
+
+    local starter = world:FindFirstChild("Meadow Mine Grounds")
+    local starterPatch, starterCanopy = plantingArea(starter, scenery, config.StarterMineX, shrubStyles[1], 6050)
+    for _, side in ipairs({-1, 1}) do
+        for _, point in ipairs({{20,17}, {41,23}, {34,42}, {54,37}}) do
+            starterCanopy(side * point[1], point[2], 8.1)
+        end
+        for _, point in ipairs({{11,14}, {19,6}, {28,12}, {36,6}, {45,8}, {44,31},
+            {15,29}, {24,38}, {46,46}, {12,46}, {57,-16}, {57,-38}, {32,-55}, {15,-55}}) do
+            starterPatch(side * point[1], point[2], 1.05)
+        end
+    end
+
+    for index = 2, #config.Zones do
+        local parent = world:FindFirstChild(config.Zones[index].Name)
+        local biomePatch, biomeCanopy = plantingArea(parent, scenery, config.zoneCenter(index), shrubStyles[index], 6130 + index)
+        for _, side in ipairs({-1, 1}) do
+            if index == 3 then
+                biomeCanopy(side * 18, 16, 9.2, true)
+                biomeCanopy(side * 33, 34, 9.7, true)
+                biomeCanopy(side * 17, 40, 8.1, true)
+            end
+            for _, point in ipairs({{12,4}, {21,-1}, {30,1}, {35,9}, {14,24}, {22,30}, {28,18},
+                {38,17}, {38,31}, {26,42}, {42,44}, {11,45}, {28,-42}, {34,-47}, {47,-26}}) do
+                biomePatch(side * point[1], point[2], index == 2 and .78 or .9)
+            end
+        end
+        if index == config.Resonance.Zone then
+            for _, point in ipairs({{-37,-21}, {-36,-40}, {-37,-70}, {-18,-76}, {37,-32}, {37,-53}, {17,-57}, {30,-65}}) do
+                biomePatch(point[1], point[2], .73)
+            end
+        end
+    end
+end
+
+function World.marketCanopy(parent, anchor, width, color)
+    local origin = anchor.Position
+    local pale = rgb(228, 213, 173)
+    for _, side in ipairs({-1, 1}) do
+        piece(parent, "Market Stand Post", vector(.32, 5.9, .32),
+            origin + vector(side * (width / 2 - .25), 1.72, 1.32), pale, material.Plastic)
+    end
+    piece(parent, "Market Stand Canopy", vector(width, .34, 3.95),
+        origin + vector(0, 4.6, .22), color, material.Plastic)
+    for stripe = -2, 2 do
+        piece(parent, "Canopy Stripe", vector(width / 5, .44, .22),
+            origin + vector(stripe * width / 5, 4.43, -1.75),
+            stripe % 2 == 0 and color or pale, material.Plastic)
+    end
+end
+
+function World.station(parent, anchor, color)
+    local position = anchor.Position
+    local cream = rgb(231, 221, 184)
+    anchor.Material = material.Plastic
+    for _, dx in ipairs({-4.15, 4.15}) do
+        piece(parent, "Stall Post", vector(.62, 6, .62), position + vector(dx, 1.5, 3.8), cream, material.Plastic, true)
+    end
+    piece(parent, "Stall Roof", vector(10, .48, 9), position + vector(0, 4.7, 0), color, material.Plastic, true)
+    piece(parent, "Counter Trim", vector(9.3, .4, 9.3), position + vector(0, 1.85, 0), cream, material.Plastic)
+    for stripe = -4, 4 do
+        local tint = stripe % 2 == 0 and color or cream
+        piece(parent, "Striped Fascia", vector(1.1, .72, .24), position + vector(stripe * 1.1, 4.39, -4.46),
+            tint, material.Plastic)
+    end
+    piece(parent, "Shop Emblem", vector(1.38, 1.38, .26), position + vector(0, 2.61, -4.72),
+        color, material.Plastic, false, nil, CFrame.Angles(0, 0, math.rad(45)))
+end
+
+function World.forge(parent, anchor, picks, color)
     local position = anchor.Position
     local function at(x, y, z)
         return position + vector(x, y, z)
@@ -1185,7 +2304,7 @@ function World.forge(parent, anchor, picks)
     for _, side in ipairs({-1, 1}) do
         piece(parent, "Forge Post", vector(.65, 7.1, .65), at(side * 7.6, 2, 5.2), timber, material.Wood, true)
     end
-    piece(parent, "Copper Roof", vector(17, .4, 8), at(0, 5.6, 3), rgb(146, 73, 51), material.Metal, true,
+    piece(parent, "Forge Canopy", vector(17, .4, 8), at(0, 5.6, 3), color, material.Plastic, true,
         nil, CFrame.Angles(math.rad(-8), 0, 0))
     piece(parent, "Tool Rack", vector(14.8, 3.7, .5), at(0, 2.6, 5), rgb(60, 41, 40), material.WoodPlanks, true)
     for tier in ipairs(picks) do
@@ -1199,6 +2318,37 @@ function World.forge(parent, anchor, picks)
     light(heat, heat.Color, 2, 16)
     piece(parent, "Anvil Base", vector(1.15, 1.1, 1.3), at(6.1, -.85, 2.8), darkStone, material.Metal)
     piece(parent, "Anvil", vector(2.6, .5, 1.35), at(6.1, -.12, 2.8), rgb(87, 100, 115), material.Metal)
+end
+
+function World.frostPress(parent, anchor)
+    local pos = anchor.Position
+    anchor.Material = material.Slate
+    local steel = rgb(75, 108, 128)
+    piece(parent, "Frost Seal Counter", vector(5.8, .34, 3.4), pos + vector(0, 1.42, 0), timber, material.Wood)
+    piece(parent, "Seal Press Frame", vector(.6, 2.05, .58), pos + vector(0, 2.53, .45), steel, material.Metal)
+    piece(parent, "Seal Press Lever", vector(1.62, .2, .22), pos + vector(.49, 3.4, .4), steel,
+        material.Metal, false, nil, CFrame.Angles(0, 0, -.23))
+    local lens = piece(parent, "Frost Seal Display", vector(.64, .54, .63), pos + vector(0, 1.96, -.46),
+        rgb(142, 224, 255), material.Glass, false, nil, CFrame.Angles(0, .57, .23))
+    light(lens, lens.Color, .9, 8)
+end
+
+function World.styleGallery(parent, anchor, skins)
+    anchor.Material = material.WoodPlanks
+    local origin = anchor.Position
+    piece(parent, "Style Gallery Base", vector(6.8, .25, 3.7), origin + vector(0, -1.12, 0),
+        darkStone, material.Slate)
+    piece(parent, "Style Gallery Counter", vector(6.2, .4, 3.7), origin + vector(0, 1.31, 0),
+        timber, material.Wood)
+    piece(parent, "Style Display Back", vector(6.1, 3.5, .28), origin + vector(0, 2.94, 1.45),
+        rgb(61, 57, 85), material.Fabric)
+    for _, finish in ipairs(skins) do
+        if finish.Pass then
+            local x = finish.Pass == 1 and -1.45 or 1.45
+            local pose = CFrame.new(origin + vector(x, 2.8, 1.11)) * CFrame.Angles(0, math.pi, math.rad(x * 8))
+            Pickaxes.model(parent, pose, 4, true, finish)
+        end
+    end
 end
 
 function World.compassStand(parent, anchor)
@@ -1279,6 +2429,18 @@ function World.surveyorLantern(root)
     fitting("Lantern Cap", vector(.53, .11, .53), .29, brass, material.Metal)
     fitting("Lantern Base", vector(.53, .11, .53), -.29, brass, material.Metal)
     light(glass, violet, .7, 9)
+end
+
+function World.travelPulse(anchor)
+    local shimmer = anchor:FindFirstChild("Wayshrine Ripple")
+    if not shimmer then
+        shimmer = particles(anchor, anchor.Color, 0, NumberRange.new(2.8, 5.3),
+            NumberRange.new(.55, .84), NumberSequence.new(.24, .06))
+        shimmer.Name = "Wayshrine Ripple"
+        shimmer.SpreadAngle = Vector2.new(120, 120)
+        shimmer.Acceleration = vector(0, 2.3, 0)
+    end
+    shimmer:Emit(19)
 end
 
 function World.celebrate(anchor, count)
@@ -1415,7 +2577,17 @@ function World.playerStyle(root, pet, aura)
 end
 
 function World.portal(parent, anchor, color)
-    local position = anchor.Position
+    anchor.Size = vector(8, .65, 8)
+    local position = vector(anchor.Position.X, .81, anchor.Position.Z)
+    anchor.Position = position
+    anchor.Material = material.Slate
+    anchor.Color = darkStone
+    piece(parent, "Teleporter Plate", vector(6.85, .08, 6.85), position + vector(0, .34, 0),
+        color:Lerp(darkStone, .58), material.Plastic)
+    for _, side in ipairs({-1, 1}) do
+        piece(parent, "Teleporter Inlay", vector(.27, .10, 6.12), position + vector(side * 2.96, .39, 0),
+            color, material.Neon)
+    end
     for _, dx in ipairs({-3.7, 3.7}) do
         piece(parent, "Wayshrine Pillar", vector(1.25, 5.8, 1.25), position + vector(dx, 2, 1.9), darkStone, material.Slate, true)
     end
@@ -1619,9 +2791,8 @@ function World.resonance(mine, x, color)
     block("Door Lintel", vector(8, 2, 2), at(0, 10, -34))
     local door = block("Resonance Gate", vector(8, 8.5, 1), at(0, 4.7, -34))
     local closed = door.CFrame
-    local status = piece(mine, "Crystal Resonance", vector(1, 1, 1), at(0, 4.4, -31),
-        color, material.SmoothPlastic)
-    status.Transparency = 1
+    local status = World.fieldSign(mine, "Resonance Gate Sign", at(0, 4.9, -31), 8.25,
+        "CRYSTAL RESONANCE", "Tune the three pulsing veins")
     local cache = piece(mine, "Echo Deposit", vector(4.4, 2.2, 3.8), at(0, 1.58, -44),
         stone, material.Slate, true)
     local exit = piece(mine, "Chamber Exit", vector(1.15, 2.7, 1.15), at(6, 1.86, -38),
@@ -1656,6 +2827,8 @@ function World.resonance(mine, x, color)
         veins[index] = { Anchor = anchor, Cluster = cluster, Sparks = sparks, Pulse = pulse, Lamp = lampLight }
     end
 
+    local gateOpen = false
+    local gateTween
     return {
         Veins = veins, Status = status, Cache = cache, Exit = exit,
         ExitPosition = at(0, 5, -27),
@@ -1663,9 +2836,21 @@ function World.resonance(mine, x, color)
         FrontZ = -63.2,
         BackZ = -76,
         Gate = function(open)
-            door.CanCollide = not open
-            door.CanQuery = not open
-            door.CFrame = open and (closed * CFrame.new(0, 8.7, 0)) or closed
+            if open == gateOpen then return end
+            gateOpen = open
+            if gateTween then gateTween:Cancel() end
+            door.CanCollide = false
+            door.CanQuery = false
+            local target = open and (closed * CFrame.new(0, 8.7, 0)) or closed
+            local tween = TweenService:Create(door, TweenInfo.new(open and .72 or .55, Enum.EasingStyle.Quad), {CFrame = target})
+            gateTween = tween
+            tween.Completed:Connect(function(result)
+                if result == Enum.PlaybackState.Completed and gateTween == tween and not gateOpen then
+                    door.CanQuery = true
+                    door.CanCollide = true
+                end
+            end)
+            tween:Play()
         end,
     }
 end
@@ -1868,6 +3053,64 @@ function Premium.start(products)
     end
 end
 
+local passIndexes = {}
+local purchaseConnection
+
+function Premium.ownsPass(player, index)
+    return player:GetAttribute("PassOwned" .. index) == true
+end
+
+function Premium.startPasses(passes, onPurchase)
+    passIndexes = {}
+    for index, pass in ipairs(passes) do
+        if pass.Id > 0 then
+            if passIndexes[pass.Id] then
+                warn("Duplicate game pass ID:", pass.Id)
+            else
+                passIndexes[pass.Id] = index
+            end
+        end
+    end
+    if purchaseConnection then purchaseConnection:Disconnect() end
+    purchaseConnection = MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, id, purchased)
+        local index = passIndexes[id]
+        if not purchased or not index or player.Parent ~= Players or Premium.ownsPass(player, index) then return end
+        player:SetAttribute("PassOwned" .. index, true)
+        onPurchase(player, passes[index])
+    end)
+end
+
+local function checkPass(player, index, pass)
+    if passIndexes[pass.Id] ~= index then return nil end
+    local ok, owned = pcall(function()
+        return MarketplaceService:UserOwnsGamePassAsync(player.UserId, pass.Id)
+    end)
+    if player.Parent ~= Players then return nil end
+    if Premium.ownsPass(player, index) then return true end
+    if not ok then
+        warn("Could not check game pass ownership:", owned)
+        return nil
+    end
+    player:SetAttribute("PassOwned" .. index, owned)
+    return owned
+end
+
+function Premium.loadPasses(player, passes)
+    for index, pass in ipairs(passes) do
+        if pass.Id > 0 then task.spawn(checkPass, player, index, pass) end
+    end
+end
+
+function Premium.promptPass(player, index, pass)
+    if passIndexes[pass.Id] ~= index then return false, "This pass is unavailable." end
+    local owned = player:GetAttribute("PassOwned" .. index)
+    if owned == nil then owned = checkPass(player, index, pass) end
+    if owned == nil then return false, "Could not check pass ownership. Try again." end
+    if owned then return false, "You already own this pass." end
+    MarketplaceService:PromptGamePassPurchase(player, pass.Id)
+    return true
+end
+
 return Premium
 ]=])
 install(game:GetService("ServerScriptService"), "SessionStore", "ModuleScript", [=[
@@ -1970,6 +3213,13 @@ local mineRemote = Instance.new("RemoteEvent")
 mineRemote.Name = "SwingAtOre"
 mineRemote.Parent = RS
 local oreActions = {}
+local homeRemote = Instance.new("RemoteEvent")
+homeRemote.Name = "ReturnToMeadow"
+homeRemote.Parent = RS
+local welcomeRemote = Instance.new("RemoteEvent")
+welcomeRemote.Name = "DismissWelcome"
+welcomeRemote.Parent = RS
+local nextHome = {}
 local lastEquip = {}
 local relayRuns = {}
 local tideRuns = {}
@@ -1981,7 +3231,7 @@ local profiles, sessions, last, loading, departing = {}, {}, {}, {}, {}
 local function fresh()
  local profile = { Coins=0, Crystals=0, Pick=1, Zone=1, Pet=0, Rebirths=0, Discoveries=0,
   Bag=1, Orders=0, OrderZone=0, OrderNodes=0, OrderCrystals=0, GuidedOrder=0,
-  PetsOwned=0, SkinsOwned=0, AurasOwned=0, Skin=0, Aura=0, RelayBestMs=0, EmberBestMs=0, DeepLift=0, AmethystReserve=0, SurveyorLantern=0, Specimens=0, GeodeCompass=0, MasterBanked=0, HeartstoneTrophy=0 }
+  PetsOwned=0, SkinsOwned=0, AurasOwned=0, Skin=0, Aura=0, RelayBestMs=0, EmberBestMs=0, DeepLift=0, AmethystReserve=0, SurveyorLantern=0, Specimens=0, GeodeCompass=0, MasterBanked=0, HeartstoneTrophy=0, FrostSeal=0, FrostReserve=0, FirstForgeKit=0, WelcomeSeen=0 }
  for index in ipairs(C.Zones) do
   profile["CaveNodes" .. index] = 0
   profile[C.oreKey(index)] = 0
@@ -1990,7 +3240,7 @@ local function fresh()
  return profile
 end
 local function capacity(d)
- return C.Bags[d.Bag].Capacity + d.Rebirths * 25
+ return C.Bags[d.Bag].Capacity + d.Rebirths * 25 + d.FrostSeal * C.FrostSeal.ExtraCapacity
 end
 local function clearOre(d)
  d.Crystals = 0
@@ -2004,8 +3254,10 @@ local function validateOre(d)
   d[key] = math.min(d[key], remaining)
   remaining -= d[key]
  end
- d.SurveyorLantern = math.min(d.SurveyorLantern, 1)
- d.AmethystReserve = d.SurveyorLantern == 1 and 0 or math.min(d.AmethystReserve, C.SurveyorLantern.Cost)
+ for _, recipe in ipairs({C.SurveyorLantern, C.FrostSeal}) do
+  d[recipe.Owned] = math.min(d[recipe.Owned], 1)
+  d[recipe.Reserve] = d[recipe.Owned] == 1 and 0 or math.min(d[recipe.Reserve], recipe.Cost)
+ end
 end
 
 local function sync(p)
@@ -2014,7 +3266,9 @@ local function sync(p)
  p:SetAttribute("Capacity",capacity(d))
  local stats=p:FindFirstChild("leaderstats"); if stats then stats.Coins.Value=d.Coins; stats.Rebirths.Value=d.Rebirths end
 end
-local function notify(p,s,effect) remote:FireClient(p,s,effect) end
+local function notify(p, message, cue, soundCue)
+ remote:FireClient(p, message, cue, nil, nil, soundCue)
+end
 local function activeProfile(p)
  local d = profiles[p]
  local session = sessions[p]
@@ -2050,13 +3304,15 @@ end
 
 local function refreshPickaxe(p, d)
  local finish = C.Skins[d.Skin]
- if finish and finish.Premium and not Premium.owns(p, finish.Premium) then finish = nil end
+ if finish and ((finish.Premium and not Premium.owns(p, finish.Premium))
+  or (finish.Pass and not Premium.ownsPass(p, finish.Pass))) then finish = nil end
  Pickaxes.sync(p, C.Picks[d.Pick], d.Pick, finish)
 end
 
 local function refreshLook(p, character, d)
  local aura = C.Auras[d.Aura]
- if aura and aura.Premium and not Premium.owns(p, aura.Premium) then aura = nil end
+ if aura and ((aura.Premium and not Premium.owns(p, aura.Premium))
+  or (aura.Pass and not Premium.ownsPass(p, aura.Pass))) then aura = nil end
  local root = character and character:FindFirstChild("HumanoidRootPart")
  if root then
   World.playerStyle(root, C.Pets[d.Pet], aura)
@@ -2095,6 +3351,10 @@ local function add(p)
  local d=fresh(); if type(data)=="table" then for k,v in pairs(d) do if type(data[k])=="number" and data[k]>=0 and data[k]<1e12 then d[k]=math.floor(data[k]) end end end
  d.Pick=math.clamp(d.Pick,1,#C.Picks); d.Zone=math.clamp(d.Zone,1,#C.Zones); d.Pet=math.clamp(d.Pet,0,#C.Pets)
  validateOre(d)
+ if d.WelcomeSeen > 0 or d.Orders > 0 or d.OrderZone > 0 or d.Pick > 1 or d.Zone > 1 or d.Rebirths > 0 then
+  d.WelcomeSeen = 1
+ end
+ if d.Pick >= 2 or d.Rebirths > 0 then d.FirstForgeKit = 1 end
  -- Older saves only recorded the equipped pet.
  if d.Pet > 0 then d.PetsOwned = bit32.bor(d.PetsOwned, bit32.lshift(1, d.Pet - 1)) end
  for _, crate in ipairs(C.Crates) do
@@ -2106,7 +3366,7 @@ local function add(p)
   d[key] = bit32.band(d[key], ownedMask)
   local selected = d[crate.Equipped]
   local item = C[crate.Pool][selected]
-  if not item or (not item.Premium and not C.owns(d[key], selected)) then d[crate.Equipped] = 0 end
+  if not item or (not item.Premium and not item.Pass and not C.owns(d[key], selected)) then d[crate.Equipped] = 0 end
  end
  for index, mastery in ipairs(C.CaveMastery) do
   local key = "CaveNodes" .. index
@@ -2156,6 +3416,15 @@ local function add(p)
   if skin and skin.Premium then refreshPickaxe(p, d) end
   if aura and aura.Premium then refreshLook(p, p.Character, d) end
  end)
+ for index in ipairs(C.GamePasses) do
+  p:GetAttributeChangedSignal("PassOwned" .. index):Connect(function()
+   if profiles[p] ~= d then return end
+   local skin, aura = C.Skins[d.Skin], C.Auras[d.Aura]
+   if skin and skin.Pass == index then refreshPickaxe(p, d) end
+   if aura and aura.Pass == index then refreshLook(p, p.Character, d) end
+  end)
+ end
+ Premium.loadPasses(p, C.GamePasses)
  task.spawn(Premium.load, p)
  if not record then task.delay(3,function() if p.Parent == Players then notify(p,"Studio test: saving disabled") end end) end
 end
@@ -2165,7 +3434,8 @@ local function part(name,size,pos,color,parent)
 end
 local function label(p,txt)
  local g=Instance.new("BillboardGui"); g.Size=UDim2.fromOffset(168,48); g.StudsOffset=Vector3.new(0,4,0); g.AlwaysOnTop=false; g.MaxDistance=38; g.Parent=p
- local t=Instance.new("TextLabel"); t.Size=UDim2.fromScale(1,1); t.BackgroundTransparency=1; t.Text=txt; t.TextColor3=Color3.new(1,1,1); t.TextStrokeTransparency=.2; t.TextScaled=true; t.Font=Enum.Font.GothamBold; t.Parent=g
+ CollectionService:AddTag(g, "MiningWorldLabel")
+ local t=Instance.new("TextLabel"); t.Size=UDim2.fromScale(1,1); t.BackgroundTransparency=1; t.Text=txt; t.TextColor3=Color3.new(1,1,1); t.TextStrokeTransparency=.2; t.TextScaled=true; t.Font=Enum.Font.SourceSansBold; t.Parent=g
  local textSize = Instance.new("UITextSizeConstraint")
  textSize.MinTextSize = 10
  textSize.MaxTextSize = 16
@@ -2197,6 +3467,13 @@ local function prompt(a,txt,fn,requiresSight)
  end)
  return q
 end
+local function claimSwing(p, pick)
+ local now = os.clock()
+ if now - (last[p] or -math.huge) < pick.SwingCooldown then return false end
+ last[p] = now
+ return true
+end
+
 local function sell(p, anchor)
  local d = profiles[p]
  if d.Crystals == 0 then notify(p, "Your bag is empty!"); return end
@@ -2296,37 +3573,43 @@ local function appraiseGeode(p, anchor)
  notify(p, sample.Name .. " • +" .. sample.Coins .. " coins" .. detail, "reward")
 end
 
-local function craftLantern(p, anchor)
+local function craftGear(p, anchor, recipe)
  local d = profiles[p]
- local recipe = C.SurveyorLantern
- if d.SurveyorLantern == 1 then
-  notify(p, "Your Surveyor’s Lantern is equipped. Watch for nearby rich-vein markers.")
+ if d[recipe.Owned] == 1 then
+  notify(p, recipe.Name .. " is equipped. " .. recipe.Benefit)
+  return
+ end
+ if d.Zone < recipe.Zone then
+  notify(p, "Unlock " .. C.Zones[recipe.Zone].Name .. " to find the ore for this recipe.")
   return
  end
 
+ local oreType = C.Zones[recipe.Zone].Ore
  local key = C.oreKey(recipe.Zone)
- local needed = recipe.Cost - d.AmethystReserve
+ local needed = recipe.Cost - d[recipe.Reserve]
  local moved = math.min(needed, d[key])
  if moved == 0 and needed > 0 then
-  notify(p, "Surveyor’s Lantern • " .. d.AmethystReserve .. "/" .. recipe.Cost .. " Amethyst set aside")
+  notify(p, recipe.Name .. " • " .. d[recipe.Reserve] .. "/" .. recipe.Cost .. " " .. oreType .. " set aside")
   return
  end
  d[key] -= moved
  d.Crystals -= moved
- d.AmethystReserve += moved
- if d.AmethystReserve < recipe.Cost then
+ d[recipe.Reserve] += moved
+ if d[recipe.Reserve] < recipe.Cost then
   sync(p)
-  notify(p, "Set aside " .. moved .. " Amethyst • " .. d.AmethystReserve .. "/" .. recipe.Cost, "accept")
+  notify(p, "Set aside " .. moved .. " " .. oreType .. " • " .. d[recipe.Reserve] .. "/" .. recipe.Cost, "accept")
   return
  end
 
- d.SurveyorLantern = 1
- d.AmethystReserve = 0
+ d[recipe.Owned] = 1
+ d[recipe.Reserve] = 0
  sync(p)
- local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
- if root then World.surveyorLantern(root) end
+ if recipe == C.SurveyorLantern then
+  local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+  if root then World.surveyorLantern(root) end
+ end
  World.celebrate(anchor, 34)
- notify(p, "Surveyor’s Lantern crafted! Nearby rich veins are marked.", "reward")
+ notify(p, recipe.Name .. " crafted! " .. recipe.Benefit, "craft")
 end
 
 local function buyBag(p, anchor)
@@ -2364,7 +3647,24 @@ local function commissions(p, anchor)
  World.celebrate(anchor, 30)
  notify(p, name .. " completed • +" .. reward .. " coins", "reward")
 end
-local function upgrade(p, anchor) local d=profiles[p]; local nextPick=C.Picks[d.Pick+1]; if not nextPick then notify(p,"Max pickaxe!"); return end; if d.Coins<nextPick.Cost then notify(p,"Need "..nextPick.Cost.." coins"); return end; d.Coins-=nextPick.Cost; d.Pick+=1; sync(p); refreshPickaxe(p, d); World.celebrate(anchor, 18); notify(p,"Forged "..nextPick.Name.." Pickaxe", "buy") end
+local function upgrade(p, anchor)
+ local d = profiles[p]
+ local nextPick = C.Picks[d.Pick + 1]
+ if not nextPick then notify(p, "Max pickaxe!"); return end
+ if d.Coins < nextPick.Cost then notify(p, "Need " .. nextPick.Cost .. " coins"); return end
+ d.Coins -= nextPick.Cost
+ d.Pick += 1
+ local first = d.Pick == 2 and d.FirstForgeKit == 0
+ if first then
+  d.FirstForgeKit = 1
+  d.Coins += C.FirstForgeReward
+ end
+ sync(p)
+ refreshPickaxe(p, d)
+ World.celebrate(anchor, first and 30 or 18)
+ notify(p, "Forged " .. nextPick.Name .. " Pickaxe" .. (first and (" • First Forge Kit: +" .. C.FirstForgeReward .. " coins") or ""),
+  "forge")
+end
 local function applyCollection(p, d, crate)
  if crate.Equipped == "Skin" then
   refreshPickaxe(p, d)
@@ -2424,6 +3724,8 @@ equipRemote.OnServerEvent:Connect(function(p, group, index)
  local item = C[crate.Pool][index]
  if item and item.Premium then
   if not Premium.owns(p, item.Premium) then return end
+ elseif item and item.Pass then
+  if not Premium.ownsPass(p, item.Pass) then return end
  elseif index ~= 0 and not C.owns(d[crate.Pool .. "Owned"], index) then
   return
  end
@@ -2435,19 +3737,39 @@ equipRemote.OnServerEvent:Connect(function(p, group, index)
  sync(p)
 end)
 premiumRemote.OnServerEvent:Connect(function(p, action, index)
- if not activeProfile(p) or premiumBusy[p] then return end
+ if not activeProfile(p) or premiumBusy[p] or typeof(index) ~= "number" or index % 1 ~= 0 then return end
  local now = os.clock()
  if now - (lastPremium[p] or -math.huge) < 1 then return end
- if action == "TopUp" and typeof(index) == "number" and index % 1 == 0 then
+ if action == "TopUp" then
   local product = C.StarshardProducts[index]
   if not product then return end
   lastPremium[p] = now
+  if not C.StarshardSalesEnabled then
+   notify(p, "Starshards (in development)")
+   return
+  end
   local ok, shown = pcall(Premium.prompt, p, product)
   if not ok or not shown then notify(p, "Robux top-ups are unavailable.") end
- elseif action == "Open" and typeof(index) == "number" and index % 1 == 0 then
+ elseif action == "Pass" then
+  local pass = C.GamePasses[index]
+  if not pass then return end
+  lastPremium[p] = now
+  if not C.GamePassSalesEnabled then
+   notify(p, pass.Name .. " (in development)")
+   return
+  end
+  premiumBusy[p] = true
+  local ok, shown, message = pcall(Premium.promptPass, p, index, pass)
+  premiumBusy[p] = nil
+  if p.Parent == Players and (not ok or not shown) then notify(p, message or "Could not open the pass purchase.") end
+ elseif action == "Open" then
   local crate = C.PremiumCrates[index]
   if not crate then return end
   lastPremium[p] = now
+  if not C.StarshardSalesEnabled then
+   notify(p, crate.Name .. " (in development)")
+   return
+  end
   premiumBusy[p] = true
   local success, message = Premium.buyCrate(p, index, crate)
   premiumBusy[p] = nil
@@ -2460,16 +3782,34 @@ premiumRemote.OnServerEvent:Connect(function(p, action, index)
  end
 end)
 
-local function rebirth(p) local d=profiles[p]; local cost=3000*(d.Rebirths+1); if d.Coins<cost then notify(p,"Need "..cost.." coins"); return end; d.Coins=0; clearOre(d); clearVeinChain(p); d.Pick=1; d.Zone=1; d.Rebirths+=1; sync(p); refreshPickaxe(p, d); local root=p.Character and p.Character:FindFirstChild("HumanoidRootPart"); if root then root.CFrame=CFrame.new(0,5,0) end; notify(p,"Rebirth complete! Permanent sell multiplier increased.", "reward") end
-local stations={{"Sell Crystals",Vector3.new(-20,2,0),Color3.fromRGB(255,190,50),sell},{"Pickaxe Forge",Vector3.new(20,2,0),Color3.fromRGB(80,160,255),upgrade},{"Rebirth",Vector3.new(20,2,15),Color3.fromRGB(170,100,255),rebirth},
- {"Guild Commissions",Vector3.new(-34,2,8),Color3.fromRGB(68,178,159),commissions},
- {"Bag Outfitters",Vector3.new(34,2,8),Color3.fromRGB(217,130,74),buyBag}}
+local function rebirth(p)
+ local d = profiles[p]
+ local cost = 3000 * (d.Rebirths + 1)
+ if d.Coins < cost then notify(p, "Need " .. cost .. " coins"); return end
+ d.Coins, d.Pick, d.Zone = 0, 1, 1
+ d.OrderZone, d.OrderNodes, d.OrderCrystals, d.GuidedOrder = 0, 0, 0, 0
+ d.Rebirths += 1
+ clearOre(d)
+ clearVeinChain(p)
+ sync(p)
+ refreshPickaxe(p, d)
+ local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+ if root then root.CFrame = CFrame.new(0, 5, 0) end
+ notify(p, "Rebirth complete! Permanent sell multiplier increased.", "reward")
+end
+local stations = {
+ {"Sell Crystals", Vector3.new(-33, 2, 5), Color3.fromRGB(255,190,50), sell},
+ {"Pickaxe Forge", Vector3.new(-53, 2, 7), Color3.fromRGB(80,160,255), upgrade},
+ {"Guild Commissions", Vector3.new(-53, 2, 24), Color3.fromRGB(68,178,159), commissions},
+ {"Bag Outfitters", Vector3.new(-33, 2, 25), Color3.fromRGB(211,112,78), buyBag},
+ {"Rebirth", Vector3.new(55, 2, 56), Color3.fromRGB(170,100,255), rebirth},
+}
 for _, station in ipairs(stations) do
  local name, position, color, action = table.unpack(station)
  local anchor = part(name, Vector3.new(9,4,9), position, color)
  local promptText = "Interact"
  if action == upgrade then
-  World.forge(world, anchor, C.Picks)
+  World.forge(world, anchor, C.Picks, color)
   promptText = "Forge next pickaxe"
  elseif action == commissions or action == buyBag then
   World.kiosk(world, anchor, color, action == commissions)
@@ -2477,27 +3817,25 @@ for _, station in ipairs(stations) do
  else
   World.station(world, anchor, color)
  end
- label(anchor, name)
+ if action ~= sell and action ~= upgrade and action ~= commissions then World.marketSign(world, anchor, name) end
  prompt(anchor, promptText, function(p) action(p, anchor) end)
 end
 local crateColors = {Color3.fromRGB(227,129,174), Color3.fromRGB(90,178,212), Color3.fromRGB(166,130,229)}
 for group, crate in ipairs(C.Crates) do
  local color = crateColors[group]
- local anchor = part(crate.Name, Vector3.new(6,3,5), Vector3.new((group - 2) * 11,2,23), color)
+ local anchor = part(crate.Name, Vector3.new(6,3,5), Vector3.new(25 + (group - 1) * 16, 2, 27), color)
  World.crateStand(world, anchor, color)
- label(anchor, crate.Name .. " • " .. crate.Cost .. " coins")
+ World.marketCanopy(world, anchor, 6.3, color)
+ World.marketSign(world, anchor, crate.Name, crate.Cost .. " coins")
  prompt(anchor, "Open crate", function(p) openCrate(p, anchor, crate) end)
 end
 
 local function setupResonance(mine, x, color)
  local event = C.Resonance
  local chamber = World.resonance(mine, x, color)
- local status = label(chamber.Status, "")
- local entrance = part("Expedition Notice", Vector3.new(1, 1, 1), Vector3.new(x + 5, 2, -4), color, mine)
- entrance.CanCollide = false
- entrance.CanQuery = false
- entrance.Transparency = 1
- label(entrance, "Crystal Resonance\nFollow the three pulsing veins")
+ local status = chamber.Status
+ World.fieldSign(mine, "Expedition Notice", Vector3.new(x + 11.5, 3.35, -4.4), 7.8,
+  "CRYSTAL RESONANCE", "Follow the three pulsing veins")
  local cachePrompt
  local cycle, lit = 0, 0
  local active, started = false, false
@@ -2505,9 +3843,9 @@ local function setupResonance(mine, x, color)
 
  local function showProgress()
   if active then
-   status.Text = "Echo Chamber open\nExtract the deposit inside"
+   status.Text = "Chamber open • extract the deposit"
   else
-   status.Text = "Crystal Resonance • " .. lit .. "/" .. #chamber.Veins .. "\nMine the three pulsing veins"
+   status.Text = lit .. "/" .. #chamber.Veins .. " tuned • follow the pulsing veins"
   end
  end
 
@@ -2530,9 +3868,8 @@ local function setupResonance(mine, x, color)
   vein.Prompt = prompt(vein.Anchor, "Mine resonant vein", function(p)
    local d = profiles[p]
    if d.Zone < event.Zone or active or vein.Health <= 0 or not clearShot(p, vein.Anchor) then return end
-   local now = os.clock()
-   if now - (last[p] or -math.huge) < .35 then return end
-   last[p] = now
+   local pick = C.Picks[d.Pick]
+   if not claimSwing(p, pick) then return end
    contributed[p] = true
    if not started then
     started = true
@@ -2543,7 +3880,7 @@ local function setupResonance(mine, x, color)
    end
 
    Pickaxes.swing(p)
-   vein.Health -= C.Picks[d.Pick].Power
+   vein.Health -= pick.Power
    vein.Sparks:Emit(vein.Health <= 0 and 18 or 7)
    if vein.Health > 0 then
     notify(p, "Resonant vein • " .. vein.Health .. " HP", "hit")
@@ -2614,7 +3951,7 @@ end
 local function setupWhiteout(zone, x)
  local relay = C.Whiteout
  local shelter, beacons = World.whiteout(zone, x, relay.Route)
- label(shelter, "Whiteout Relay\nStart at the shelter")
+ World.stationSign(shelter, "Whiteout Relay", "Start at the shelter")
  prompt(shelter, "Start Whiteout Relay", function(p)
   if profiles[p].Zone < relay.Zone then return end
   local now = workspace:GetServerTimeNow()
@@ -2640,7 +3977,7 @@ local function setupWhiteout(zone, x)
 
  for index, beacon in ipairs(beacons) do
   local stop = relay.Route[index]
-  label(beacon.Anchor, stop.Name)
+  World.stationSign(beacon.Anchor, stop.Name)
   prompt(beacon.Anchor, "Signal beacon", function(p)
    local run = relayRuns[p]
    local now = workspace:GetServerTimeNow()
@@ -2685,7 +4022,7 @@ local function setupTidekeeper(zone, x)
  for _, dial in ipairs(puzzle.Dials) do
   carving[#carving + 1] = string.gsub(dial.Name, " Dial$", "") .. ": " .. puzzle.Symbols[dial.Answer]
  end
- label(altar, "Tidekeeper Carving\n" .. table.concat(carving, "  •  "))
+ World.stationSign(altar, "Tidekeeper Carving", table.concat(carving, "  •  "))
  prompt(altar, "Read / offer dial settings", function(p)
   local d = profiles[p]
   if d.Zone < puzzle.Zone then return end
@@ -2722,7 +4059,7 @@ local function setupTidekeeper(zone, x)
  end, true)
 
  for index, anchor in ipairs(stations) do
-  label(anchor, puzzle.Dials[index].Name)
+  World.stationSign(anchor, puzzle.Dials[index].Name)
   prompt(anchor, "Rotate dial", function(p)
    local d = profiles[p]
    if d.Zone < puzzle.Zone or C.owns(d.AurasOwned, puzzle.Aura) then return end
@@ -2742,7 +4079,7 @@ end
 local function setupEmberheart(zone, x)
  local trial = C.Emberheart
  local anvil, sparks = World.emberheart(zone, x)
- label(anvil, "Emberheart Tempering\nStrike inside the highlighted heat band")
+ World.stationSign(anvil, "Emberheart Tempering", "Strike in the highlighted band")
  prompt(anvil, "Start / strike anvil", function(p)
   local d = profiles[p]
   if d.Zone < trial.Zone then return end
@@ -2809,9 +4146,10 @@ local function setupCavernLift(surface, deep)
   local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
   if not root then return end
   root.CFrame = CFrame.new(target.Position + Vector3.new(0, 4.5, 0))
+  notify(p, nil, "travel")
  end
 
- label(surface, "Deep Gallery Lift\nDiscover the lower station to unlock")
+ World.stationSign(surface, "Deep Gallery Lift", "Reach the lower station first")
  prompt(surface, "Descend to Deep Gallery", function(p)
   local d = profiles[p]
   if d.Zone < C.Resonance.Zone then return end
@@ -2821,7 +4159,7 @@ local function setupCavernLift(surface, deep)
   end
   lift(p, deep)
  end, true)
- label(deep, "Deep Gallery Lift\nShortcut to the mine entrance")
+ World.stationSign(deep, "Deep Gallery Lift", "Shortcut to the mine entrance")
  prompt(deep, "Unlock / ride to entrance", function(p)
   local d = profiles[p]
   if d.Zone < C.Resonance.Zone then return end
@@ -2835,36 +4173,51 @@ local function setupCavernLift(surface, deep)
  end, true)
 end
 
-local appraiser = part("Geode Appraiser", Vector3.new(7, 2.8, 3.4), Vector3.new(-29, 1.9, 26),
+local appraiser = part("Geode Appraiser", Vector3.new(7, 2.8, 3.4), Vector3.new(-52, 1.9, 42),
  Color3.fromRGB(102, 135, 123))
 World.geodeStand(world, appraiser, C.Zones)
-label(appraiser, "Geode Appraiser\nBring a geode from any mine")
+World.marketSign(world, appraiser, "Geode Appraiser", "Bring a geode from any mine")
 prompt(appraiser, "Appraise a geode", function(p) appraiseGeode(p, appraiser) end, true)
 
-local compassStand = part("Geode Compass", Vector3.new(4.2, 2.2, 2.5), Vector3.new(-37, 1.65, 33),
+local compassStand = part("Geode Compass", Vector3.new(4.2, 2.2, 2.5), Vector3.new(43, 1.65, 41),
  Color3.fromRGB(124, 113, 91))
 World.compassStand(world, compassStand)
-label(compassStand, "Geode Compass • " .. C.GeodeCompass.Cost .. " coins\nLonger vein-chain timer")
+World.marketCanopy(world, compassStand, 5.4, Color3.fromRGB(177, 115, 61))
+World.marketSign(world, compassStand, "Geode Compass", C.GeodeCompass.Cost .. " coins • longer chain timer")
 prompt(compassStand, "Buy Geode Compass", function(p) buyCompass(p, compassStand) end, true)
 
-local workbench = part("Surveyor’s Workbench", Vector3.new(6.3, 2.7, 3.2), Vector3.new(34, 1.85, -1.5),
+local workbench = part("Surveyor’s Workbench", Vector3.new(6.3, 2.7, 3.2), Vector3.new(-33, 1.85, 42),
  Color3.fromRGB(166, 117, 205))
 World.surveyorWorkbench(world, workbench)
-label(workbench, "Surveyor’s Workbench\nLantern • " .. C.SurveyorLantern.Cost .. " Amethyst")
-prompt(workbench, "Set aside Amethyst / craft", function(p) craftLantern(p, workbench) end, true)
+World.marketSign(world, workbench, "Surveyor’s Workbench", C.SurveyorLantern.Cost .. " Amethyst")
+prompt(workbench, "Set aside Amethyst / craft", function(p) craftGear(p, workbench, C.SurveyorLantern) end, true)
 
-local ledger = part("Cave Ledger", Vector3.new(5, 3.4, 2.5), Vector3.new(8.5, 2.2, 31), Color3.fromRGB(106, 148, 169))
+local frostBench = part("Frost Seal Press", Vector3.new(5.4, 2.5, 3), Vector3.new(-18, 1.82, 46),
+ Color3.fromRGB(117, 164, 193))
+World.frostPress(world, frostBench)
+World.marketCanopy(world, frostBench, 6.3, Color3.fromRGB(109, 182, 221))
+World.marketSign(world, frostBench, "Frost Seal Press", C.FrostSeal.Cost .. " Frost Ore • +35 capacity")
+prompt(frostBench, "Set aside Frost Ore / craft", function(p) craftGear(p, frostBench, C.FrostSeal) end, true)
+
+local gallery = part("Style Gallery", Vector3.new(5, 2.5, 3), Vector3.new(41, 1.76, 11),
+ Color3.fromRGB(124, 115, 162))
+World.styleGallery(world, gallery, C.Skins)
+World.marketCanopy(world, gallery, 6.8, Color3.fromRGB(111, 95, 147))
+World.marketSign(world, gallery, "Style Gallery", C.GamePassSalesEnabled and "Browse cosmetic passes" or "Gamepasses (in development)")
+prompt(gallery, "Browse styles", function(p) notify(p, nil, "passes") end, true)
+
+local ledger = part("Cave Ledger", Vector3.new(5, 3.4, 2.5), Vector3.new(-30, 2.2, 53), Color3.fromRGB(106, 148, 169))
 ledger.Material = Enum.Material.Slate
-label(ledger, "Cave Ledger\nMaster mines for permanent bonuses")
+World.marketSign(world, ledger, "Cave Ledger", "Permanent mastery bonuses")
 prompt(ledger, "Read cave progress", function(p)
  notify(p, nil, "caves")
 end, true)
 
-local display, revealHeartstone = World.heartstoneDisplay(world, Vector3.new(24, 1.7, 28))
-local trophyCaption = label(display, "Heartstone Trophy\nEarned in the Master Expedition")
+local display, revealHeartstone = World.heartstoneDisplay(world, Vector3.new(31, 1.7, 54))
+local trophyCaption = World.marketSign(world, display, "Heartstone Trophy", "Earned in the Master Expedition")
 local function showHeartstone(p)
  revealHeartstone()
- trophyCaption.Text = "Heartstone Trophy\nOn display from " .. p.DisplayName
+ trophyCaption.Text = "On display from " .. p.DisplayName
 end
 prompt(display, "Display your Heartstone trophy", function(p)
  if profiles[p].HeartstoneTrophy == 1 then
@@ -2918,7 +4271,7 @@ local function setupMasterExpedition(mine, x)
   end
  end
 
- label(room.Entry, "Heartstone Descent\nAmethyst Master rank required")
+ World.stationSign(room.Entry, "Heartstone Descent", "Amethyst Master rank required")
  prompt(room.Entry, "Enter Master Expedition", function(p)
   if not eligible(profiles[p]) then notify(p, "Master Amethyst Cavern to open Heartstone Descent."); return end
   local now = workspace:GetServerTimeNow()
@@ -2943,7 +4296,7 @@ local function setupMasterExpedition(mine, x)
 
  local function marks(anchors, deep)
   for index, anchor in ipairs(anchors) do
-   label(anchor, anchor.Name)
+   World.stationSign(anchor, anchor.Name)
    prompt(anchor, deep and "Extract heartstone seam" or "Log survey stake", function(p)
     local run = getRun(p)
     if not run or run.Deep ~= deep then return end
@@ -2964,7 +4317,7 @@ local function setupMasterExpedition(mine, x)
  marks(room.Survey, false)
  marks(room.Deep, true)
 
- label(room.Bank, "Bank the haul\nSafe payout • return to the gallery")
+ World.stationSign(room.Bank, "Bank the haul", "Safe payout • return to the gallery")
  prompt(room.Bank, "Bank haul", function(p)
   local run = getRun(p)
   if not run or run.Deep then return end
@@ -2981,7 +4334,7 @@ local function setupMasterExpedition(mine, x)
   notify(p, "Survey haul banked • +" .. reward .. " coins", "coins")
  end, true)
 
- label(room.Press, "Press on\nRisk the survey haul for Heartstone")
+ World.stationSign(room.Press, "Press on", "Risk the haul for Heartstone")
  prompt(room.Press, "Risk haul / descend", function(p)
   local run = getRun(p)
   if not run or run.Deep then return end
@@ -3006,7 +4359,7 @@ local function setupMasterExpedition(mine, x)
   end)
  end, true)
 
- label(room.Cache, "Heartstone Cache")
+ World.stationSign(room.Cache, "Heartstone Cache")
  prompt(room.Cache, "Claim Heartstone", function(p)
   local run = getRun(p)
   if not run or not run.Deep then return end
@@ -3025,7 +4378,7 @@ local function setupMasterExpedition(mine, x)
  end, true)
 
  for _, exit in ipairs(room.Exits) do
-  label(exit, exit.Name)
+  World.stationSign(exit, exit.Name)
   prompt(exit, "Exit expedition", function(p)
    local run = descentRuns[p]
    if run then finish(p, run, false) end
@@ -3055,6 +4408,22 @@ end
 
 World.welcome(world)
 World.meadowLandmarks(world)
+World.communityCorner(world)
+
+resident(world, "Pip", "Cartwright", Vector3.new(-23, .5, 17.6), -2.45, Color3.fromRGB(177, 102, 69),
+ Color3.fromRGB(237, 205, 129), function()
+  return {
+   "The commons table is for everyone. Set your bag down and tell us what you found in the mine.",
+   "I mend wheels near the sell stall. A miner brought me an ore cart with three wheels once. Called it an upgrade.",
+  }
+ end)
+resident(world, "Nell", "Neighbor", Vector3.new(53, .5, 15), -1.68, Color3.fromRGB(105, 132, 160),
+ Color3.fromRGB(238, 166, 121), function()
+  return {
+   "The flower boxes belong to the whole street. I water this side and Hollis does the park.",
+   "Walk past the wayshrines if you need a quiet spot. The ducks have claimed half the pond.",
+  }
+ end)
 resident(world, "Fern", "Trail Steward", Vector3.new(-9.3, .5, 3.3), .25, Color3.fromRGB(72, 127, 105),
  Color3.fromRGB(255, 194, 112), function(d)
   if d.Orders == 0 then
@@ -3068,7 +4437,7 @@ resident(world, "Fern", "Trail Steward", Vector3.new(-9.3, .5, 3.3), .25, Color3
    "The wayshrines light up the road out of Meadow. Amethyst Cavern is the first stop.",
   }
  end)
-resident(world, "Marlow", "Surveyor", Vector3.new(38.5, .5, -2), -1.15, Color3.fromRGB(115, 85, 147),
+resident(world, "Marlow", "Surveyor", Vector3.new(-25, .5, 38), -1.15, Color3.fromRGB(115, 85, 147),
  Color3.fromRGB(234, 179, 110), function(d)
   if d.SurveyorLantern == 1 then
    return {
@@ -3083,9 +4452,40 @@ resident(world, "Marlow", "Surveyor", Vector3.new(38.5, .5, -2), -1.15, Color3.f
  end)
 
 
+resident(world, "Hollis", "Groundskeeper", Vector3.new(21, .5, 90.7), -.34, Color3.fromRGB(79, 111, 80),
+ Color3.fromRGB(225, 184, 111), function()
+  return {
+   "The pond used to be a cart yard. The ducks moved in before I finished laying the path.",
+   "You can sit under the lookout roof. The mountains are especially nice when your bag isn’t full.",
+  }
+ end)
+
+local function travelPad(parent, name, title, position, tint, index, onTravel)
+ local pad = part(name, Vector3.new(8, 4, 8), position, tint, parent)
+ pad:SetAttribute("TravelDestination", index)
+ pad:SetAttribute("TravelTitle", title)
+ World.portal(parent, pad, tint)
+ local action = prompt(pad, "Travel", onTravel)
+ action.ObjectText = title
+ return pad
+end
+
+local function moveToDestination(p, pad, destination)
+ local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+ if not root then return end
+ World.travelPulse(pad)
+ root.CFrame = CFrame.new(destination)
+ root.AssemblyLinearVelocity, root.AssemblyAngularVelocity = Vector3.new(), Vector3.new()
+ notify(p, nil, "travel")
+end
+
 for i,z in ipairs(C.Zones) do
- local x=(i-1)*140
- local zone=World.zone(world,i,z,x)
+ local x = C.zoneCenter(i)
+ local zone = World.zone(world, i, z, x)
+ if i == 1 then
+  zone = World.starterMine(world)
+  x = C.StarterMineX
+ end
  local mine
  if i == C.Resonance.Zone then
   local surface, deep
@@ -3115,45 +4515,42 @@ for i,z in ipairs(C.Zones) do
   setupTidekeeper(zone, x)
  elseif i == C.Emberheart.Zone then
   setupEmberheart(zone, x)
- elseif i ~= C.Resonance.Zone then
+ elseif i ~= 1 and i ~= C.Resonance.Zone then
   local sign = part(z.Name .. " Sign", Vector3.new(12,3,2), Vector3.new(x,3,-36), z.Color, zone)
   label(sign,z.Name)
  end
- if i > 1 then
-  local gateX = (i - (#C.Zones + 2) / 2) * 22
-  local gate = part("Travel to " .. z.Name, Vector3.new(8, 4, 8), Vector3.new(gateX, 1, 38), z.Color)
-  World.portal(world, gate, z.Color)
-  label(gate, z.Name .. " • " .. z.Cost .. " coins")
-  prompt(gate, "Unlock / travel", function(p)
-   local d = profiles[p]
-   if d.Zone < i then
-    if d.Zone ~= i - 1 then
-     notify(p, "Unlock " .. C.Zones[i - 1].Name .. " first.")
-     return
-    end
-    if d.Coins < z.Cost then
-     notify(p, "Need " .. z.Cost .. " coins to unlock " .. z.Name .. ".")
-     return
-    end
-    d.Coins -= z.Cost
-    d.Zone = i
-    sync(p)
-   end
-   local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-   if root then root.CFrame = CFrame.new(x, 5, 0) end
-  end)
-
-  local back = part("Return to Meadow", Vector3.new(8, 3, 8), Vector3.new(x, 1, 10), Color3.fromRGB(255, 200, 80), zone)
-  World.portal(zone, back, back.Color)
-  label(back, "Return to Meadow")
-  prompt(back, "Travel", function(p)
-   local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-   if root then root.CFrame = CFrame.new(0, 5, 0) end
-  end)
+ local gateX = i == 1 and 0 or (i - (#C.Zones + 2) / 2) * 28
+ local gateZ = i == 1 and -11 or 72
+ local title = i == 1 and "Meadow Mine" or z.Name
+ local arrival = Vector3.new(x, 5, i == 1 and 12 or 0)
+ local gate
+ gate = travelPad(world, "Travel to " .. title, title, Vector3.new(gateX, 1, gateZ), z.Color, i, function(p)
+  local d = profiles[p]
+  if d.Zone < i then
+   local state, action = C.travelAvailability(i, d.Zone, d.Coins)
+   if action ~= "Unlock and travel" then notify(p, state); return end
+   d.Coins -= z.Cost
+   d.Zone = i
+   sync(p)
+  end
+  moveToDestination(p, gate, arrival)
+ end)
+ if i == 1 then
+  World.fieldSign(world, "Meadow Mine Portal Board", Vector3.new(0, 5.35, -11.4), 8.6,
+   "MEADOW MINE PORTAL", "Free • starter cave")
+ else
+  World.marketSign(world, gate, title, z.Cost .. " coins to unlock")
  end
 
+ local backZ = i == 1 and 23 or 10
+ local back
+ back = travelPad(zone, "Return to Meadow", "Meadow Hub", Vector3.new(x, 1, backZ), Color3.fromRGB(255, 200, 80),
+  0, function(p) moveToDestination(p, back, Vector3.new(0, 5, 0)) end)
+ World.fieldSign(zone, "Meadow Return Board", Vector3.new(x, 4.5, backZ + .5), 7.6,
+  "MEADOW HUB", "Free • return to town", math.pi)
+
  local landmark = World.landmark(zone, z, x, i)
- label(landmark, z.Landmark)
+ World.stationSign(landmark, z.Landmark)
  local discoveryBit = bit32.lshift(1, i - 1)
  prompt(landmark, "Survey", function(p)
   local d = profiles[p]
@@ -3180,8 +4577,10 @@ for i,z in ipairs(C.Zones) do
    end
   end
  else
+  local width = i == 1 and C.Meadow.MineWidthScale or 1
+  local depth = i == 1 and C.Meadow.MineDepthScale or 1
   for j = 1, 12 do
-   nodes[j] = { X = ((j - 1) % 6 - 2.5) * 13, Z = -14 - math.floor((j - 1) / 6) * 12, Ore = z }
+   nodes[j] = { X = ((j - 1) % 6 - 2.5) * 13 * width, Z = (-14 - math.floor((j - 1) / 6) * 12) * depth, Ore = z }
   end
  end
 
@@ -3219,6 +4618,9 @@ for i,z in ipairs(C.Zones) do
    return (rich and "Rich " or "") .. name .. "\n" .. hp .. " HP"
   end
   local hp = ore.Health
+  a:SetAttribute("OreTitle", name)
+  a:SetAttribute("OreMaxHealth", ore.Health)
+  a:SetAttribute("OreHealth", hp)
   local busy = false
   local caption = label(a, oreText(hp))
   caption.Parent.MaxDistance = 17
@@ -3226,16 +4628,13 @@ for i,z in ipairs(C.Zones) do
   local function strikeOre(p)
    local d = activeProfile(p)
    if not d or busy or d.Zone < i or not close(p, a, 14) then return end
-   local now = os.clock()
-   if now - (last[p] or 0) < .35 then return end
-
-   if not clearShot(p, a) then return end
-
-   last[p] = now
+   local pick = C.Picks[d.Pick]
+   if not clearShot(p, a) or not claimSwing(p, pick) then return end
    local cap = capacity(d)
    if d.Crystals >= cap then notify(p, "Bag full! Sell your crystals."); return end
    Pickaxes.swing(p)
-   hp -= C.Picks[d.Pick].Power
+   hp -= pick.Power
+   a:SetAttribute("OreHealth", math.max(0, hp))
    World.oreStrike(cluster, orePivot, glints, hp <= 0)
    if hp > 0 then
     caption.Text = oreText(hp)
@@ -3258,13 +4657,14 @@ for i,z in ipairs(C.Zones) do
     d.OrderNodes = math.min(target, d.OrderNodes + 1)
    end
    sync(p)
+   local breakCue = rich and "richBreak" or "break"
    if geodeEarned then
-    notify(p, z.Name .. " geode found! Bring it to the Meadow appraiser.", "reward")
+    notify(p, z.Name .. " geode found! Bring it to the Meadow appraiser.", "reward", breakCue)
    elseif newRank > previousRank then
     local title = newRank == 2 and "Master" or "Prospector"
-    notify(p, z.Name .. " • " .. title .. " • +" .. caveBonus .. " crystals per node here", "reward")
+    notify(p, z.Name .. " • " .. title .. " • +" .. caveBonus .. " crystals per node here", "reward", breakCue)
    else
-    notify(p, rich and ("Rich vein • +" .. (d.Crystals - before) .. " crystals") or nil, rich and "reward" or "break")
+    notify(p, rich and ("Rich vein • +" .. (d.Crystals - before) .. " crystals") or nil, breakCue)
    end
    busy = true
    minePrompt.Enabled = false
@@ -3273,7 +4673,7 @@ for i,z in ipairs(C.Zones) do
    CollectionService:RemoveTag(a, "MineableOre")
    caption.Visible = false
    CollectionService:RemoveTag(a, "SurveyorRichOre")
-   task.delay(3, function()
+   task.delay(z.OreRespawn, function()
     if not a:IsDescendantOf(workspace) then
      cluster:Destroy()
      return
@@ -3289,6 +4689,7 @@ for i,z in ipairs(C.Zones) do
      cluster:ScaleTo(scale)
     end
     hp = ore.Health
+    a:SetAttribute("OreHealth", hp)
     setRich(math.random(ore.RichEvery or 8) == 1)
     caption.Text = oreText(hp)
     caption.Visible = true
@@ -3304,6 +4705,38 @@ for i,z in ipairs(C.Zones) do
   minePrompt = prompt(a, "Mine", strikeOre, true)
  end
 end
+
+World.landscape(world)
+
+welcomeRemote.OnServerEvent:Connect(function(p)
+ local d = activeProfile(p)
+ if not d or d.WelcomeSeen == 1 then return end
+ d.WelcomeSeen = 1
+ p:SetAttribute("WelcomeSeen", 1)
+end)
+
+homeRemote.OnServerEvent:Connect(function(p)
+ if not activeProfile(p) then return end
+ local character = p.Character
+ local root = character and character:FindFirstChild("HumanoidRootPart")
+ local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+ if not root or not humanoid or humanoid.Health <= 0 then return end
+ local now = os.clock()
+ if now < (nextHome[p] or 0) then return end
+ nextHome[p] = now + 8
+ if relayRuns[p] or emberRuns[p] or descentRuns[p] then
+  notify(p, "Finish or exit your timed expedition before returning to Meadow.")
+  return
+ end
+ if math.abs(root.Position.X) <= C.Meadow.Width / 2 then
+  notify(p, "You are already in Meadow.")
+  return
+ end
+ root.CFrame = CFrame.new(0, 5, 0)
+ root.AssemblyLinearVelocity, root.AssemblyAngularVelocity = Vector3.new(), Vector3.new()
+ clearVeinChain(p)
+ notify(p, "Back in Meadow. Your ore is still in your bag.", "travel")
+end)
 
 mineRemote.OnServerEvent:Connect(function(p, target)
  if typeof(target) ~= "Instance" then return end
@@ -3327,6 +4760,9 @@ else
 end
 
 Premium.start(C.StarshardProducts)
+Premium.startPasses(C.GamePasses, function(p, pass)
+ notify(p, pass.Name .. " unlocked! Equip your finish and aura from the Crates tab.", "reward")
+end)
 local function remove(p)
  if loading[p] then loading[p].Cancelled = true end
  if departing[p] then return end
@@ -3334,7 +4770,7 @@ local function remove(p)
  if not profile then return end
  departing[p] = true
  profiles[p], sessions[p] = nil, nil
- last[p], lastEquip[p], conversations[p] = nil, nil, nil
+ last[p], lastEquip[p], conversations[p], nextHome[p] = nil, nil, nil, nil
  premiumBusy[p], lastPremium[p] = nil, nil
  relayRuns[p], tideRuns[p], emberRuns[p], veinChains[p] = nil, nil, nil, nil
  local descent = descentRuns[p]
@@ -3379,13 +4815,17 @@ install(game:GetService("StarterPlayer"):WaitForChild("StarterPlayerScripts"), "
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local SoundService = game:GetService("SoundService")
 local RunService = game:GetService("RunService")
 local CollectionService = game:GetService("CollectionService")
 local UserInputService = game:GetService("UserInputService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local ContextActionService = game:GetService("ContextActionService")
+local GuiService = game:GetService("GuiService")
 
 local player = Players.LocalPlayer
 local config = require(ReplicatedStorage:WaitForChild("MiningConfig"))
+local audio = require(ReplicatedStorage:WaitForChild("MiningAudio")).new(player, config.biomeAt)
+require(ReplicatedStorage:WaitForChild("BiomeView")).start(player, workspace, config.biomeAt)
 local mineRemote = ReplicatedStorage:WaitForChild("SwingAtOre")
 local mouse = player:GetMouse()
 local characterConnections = {}
@@ -3427,11 +4867,11 @@ end
 player.CharacterAdded:Connect(bindCharacter)
 if player.Character then bindCharacter(player.Character) end
 
-local mint = Color3.fromRGB(106, 236, 202)
-local gold = Color3.fromRGB(255, 197, 110)
-local ink = Color3.fromRGB(22, 35, 38)
-local slate = Color3.fromRGB(38, 58, 61)
-local soft = Color3.fromRGB(184, 207, 205)
+local mint = Color3.fromRGB(167, 227, 126)
+local gold = Color3.fromRGB(255, 214, 129)
+local ink = Color3.fromRGB(34, 38, 45)
+local slate = Color3.fromRGB(60, 66, 75)
+local soft = Color3.fromRGB(204, 210, 219)
 local white = Color3.fromRGB(242, 247, 254)
 
 local function create(className, parent, properties)
@@ -3443,14 +4883,17 @@ local function create(className, parent, properties)
     return instance
 end
 
-local function round(parent, radius)
-    create("UICorner", parent, { CornerRadius = UDim.new(0, radius) })
+local frameEdge = Color3.fromRGB(20, 23, 29)
+
+local function outline(object)
+    object.BorderColor3 = frameEdge
+    object.BorderSizePixel = 1
 end
 
 local function text(parent, value, size, color, position, dimensions, bold)
     return create("TextLabel", parent, {
         BackgroundTransparency = 1, Text = value, TextSize = size, TextColor3 = color,
-        Font = bold and Enum.Font.GothamBold or Enum.Font.Gotham,
+        Font = bold and Enum.Font.SourceSansBold or Enum.Font.SourceSans,
         Position = position, Size = dimensions, TextXAlignment = Enum.TextXAlignment.Left,
         TextTruncate = Enum.TextTruncate.AtEnd,
     })
@@ -3463,30 +4906,38 @@ local gui = create("ScreenGui", player:WaitForChild("PlayerGui"), {
     Name = "MiningHUD", ResetOnSpawn = false,
 })
 local panel = create("Frame", gui, {
-    Position = offset(12, 12), Size = offset(panelWidth, foldedHeight), BackgroundColor3 = ink, BorderSizePixel = 0,
+    Position = offset(12, 12), Size = offset(panelWidth, foldedHeight), BackgroundColor3 = ink,
+    BackgroundTransparency = .43, BorderSizePixel = 0,
 })
-round(panel, 14)
-create("UIStroke", panel, { Color = slate, Thickness = 1.5 })
+outline(panel)
+create("Frame", panel, {
+    Position = UDim2.fromOffset(1, 1), Size = offset(panelWidth - 2, 35), BorderSizePixel = 0,
+    BackgroundColor3 = Color3.fromRGB(58, 64, 75), BackgroundTransparency = .34,
+})
 local scale = create("UIScale", panel, {})
 
-text(panel, "Crystal Mining", 17, white, offset(14, 4), offset(172, 35), true)
+text(panel, "CRYSTAL MINING", 17, white, offset(14, 4), offset(172, 35), true)
 local glance = text(panel, "", 13, gold, offset(14, 39), offset(274, 18), true)
+local nextObjective = text(panel, "", 12, soft, offset(14, 60), offset(274, 35), true)
+nextObjective.TextWrapped = true
+nextObjective.TextTruncate = Enum.TextTruncate.None
+nextObjective.Visible = false
 local function button(parent, caption, position, size)
     local control = create("TextButton", parent, {
         Text = caption, Position = position, Size = size, BackgroundColor3 = slate,
-        TextColor3 = white, TextSize = 14, Font = Enum.Font.GothamBold, BorderSizePixel = 0,
+        TextColor3 = white, TextSize = 14, Font = Enum.Font.SourceSansBold, BorderSizePixel = 0,
     })
-    round(control, 8)
+    outline(control)
     return control
 end
 
-local collapse = button(panel, "Open", offset(241, 6), offset(48, 34))
+local collapse = button(panel, "Menu", offset(241, 6), offset(48, 34))
 local mute = button(panel, "Sound", offset(177, 6), offset(58, 34))
-local muted = false
+local guideShortcut = button(panel, "Guide", offset(177, 6), offset(58, 34))
 mute.Activated:Connect(function()
-    muted = not muted
-    mute.Text = muted and "Muted" or "Sound"
-    mute.TextColor3 = muted and soft or mint
+    audio:setEffects(not audio.Effects)
+    mute.Text = audio.Effects and "Sound effects: On" or "Sound effects: Off"
+    mute.TextColor3 = audio.Effects and mint or soft
 end)
 local body = create("Frame", panel, {
     BackgroundTransparency = 1, Position = offset(12, bodyTop), Size = offset(278, 250), Visible = false,
@@ -3500,6 +4951,7 @@ local cavesTab = button(body, "Caves", offset(235, 0), offset(43, 30))
 for _, tab in ipairs({statusTab, forgeTab, bagsTab, ordersTab, cratesTab, cavesTab}) do
     tab.TextSize = 12
 end
+local guideTab = button(body, "Guide", offset(240, 0), offset(38, 30))
 local status = create("Frame", body, {
     BackgroundTransparency = 1, Position = offset(0, 39), Size = offset(278, 224),
 })
@@ -3516,14 +4968,14 @@ end
 local forge = catalog(body, 39, 188)
 local bags = catalog(body, 39, 188)
 local oreSummary = create("Frame", bags, {
-    LayoutOrder = -1, Size = UDim2.new(1, -8, 0, 114), BackgroundColor3 = slate, BorderSizePixel = 0,
+    LayoutOrder = -1, Size = UDim2.new(1, -8, 0, 140), BackgroundColor3 = slate, BorderSizePixel = 0,
 })
-round(oreSummary, 8)
+outline(oreSummary)
 text(oreSummary, "Ore in your bag", 13, white, offset(9, 3), offset(245, 20), true)
 local oreList = text(oreSummary, "", 12, soft, offset(9, 24), offset(247, 38))
 oreList.TextWrapped = true
 oreList.TextTruncate = Enum.TextTruncate.None
-local recipeInfo = text(oreSummary, "", 12, mint, offset(9, 65), offset(247, 44), true)
+local recipeInfo = text(oreSummary, "", 12, mint, offset(9, 65), offset(247, 65), true)
 recipeInfo.TextWrapped = true
 recipeInfo.TextTruncate = Enum.TextTruncate.None
 local caves = catalog(body, 39, 208)
@@ -3536,7 +4988,7 @@ for index, entry in ipairs(config.Zones) do
     local row = create("Frame", caves, {
         LayoutOrder = index, Size = UDim2.new(1, -8, 0, 104), BackgroundColor3 = slate, BorderSizePixel = 0,
     })
-    round(row, 8)
+    outline(row)
     text(row, entry.Name, 13, entry.Color, offset(9, 4), offset(247, 20), true)
     local state = text(row, "", 12, mint, offset(9, 26), offset(250, 18), true)
     local nextStep = text(row, "", 11, soft, offset(9, 46), offset(250, 28))
@@ -3545,6 +4997,214 @@ for index, entry in ipairs(config.Zones) do
     local specimen = text(row, "", 11, gold, offset(9, 77), offset(249, 20), true)
     caveRows[index] = { State = state, NextStep = nextStep, Specimen = specimen }
 end
+local fieldGuide = create("Frame", body, {
+    BackgroundTransparency = 1, Position = offset(0, 39), Size = offset(278, 224), Visible = false,
+})
+local guideTabs, guidePages = {}, {}
+for index, caption in ipairs({"Start", "Atlas", "Display"}) do
+    guideTabs[index] = button(fieldGuide, caption, offset((index - 1) * 94, 0), offset(90, 30))
+    guidePages[index] = catalog(fieldGuide, 39, 178)
+end
+local function showGuide(index)
+    for i, page in ipairs(guidePages) do
+        page.Visible = i == index
+        guideTabs[i].TextColor3 = i == index and mint or white
+    end
+end
+showGuide(1)
+for i, tab in ipairs(guideTabs) do
+    tab.Activated:Connect(function() showGuide(i) end)
+end
+
+local diagrams = {
+    {"Mine", "Take the free Meadow Mine portal. Use Mine or swing your pickaxe at ore.", "crystal"},
+    {"Sell", "Trade ore for coins at the gold counter in Miners’ Services, left of Meadow’s main path.", "coins"},
+    {"Forge", "Buy Iron at the blue forge for faster swings. Your first upgrade earns a 20-coin kit.", "pick"},
+    {"Explore", "Unlock zones at the Meadow wayshrines. Check the Atlas for each cave’s rewards.", "portal"},
+}
+local function illustration(parent, kind)
+    local viewport = create("ViewportFrame", parent, {
+        Position = offset(7, 12), Size = offset(70, 61), BackgroundColor3 = ink,
+        BorderSizePixel = 0, Ambient = Color3.fromRGB(185, 205, 201), LightColor = white,
+        LightDirection = Vector3.new(-1, -1, -.5),
+    })
+    outline(viewport)
+    local camera = create("Camera", viewport, {
+        CFrame = CFrame.lookAt(Vector3.new(3.3, 2.4, 4.5), Vector3.new(0, 0, 0)), FieldOfView = 37,
+    })
+    viewport.CurrentCamera = camera
+    local function shape(size, frame, color, style)
+        local part = create("Part", viewport, {
+            Size = size, CFrame = frame, Anchored = true, Color = color, Material = Enum.Material.SmoothPlastic,
+        })
+        if style then part.Shape = style end
+    end
+    if kind == "crystal" then
+        for index = -1, 1 do
+            shape(Vector3.new(.45, 1.4 - math.abs(index) * .42, .48),
+                CFrame.new(index * .53, -.18, 0) * CFrame.Angles(0, .43, index * -.42), mint)
+        end
+    elseif kind == "coins" then
+        for index = 0, 2 do
+            shape(Vector3.new(.16, 1.16, 1.16),
+                CFrame.new(index * .07, -.43 + index * .17, 0) * CFrame.Angles(0, 0, math.pi / 2),
+                gold, Enum.PartType.Cylinder)
+        end
+        shape(Vector3.new(.14, .92, .92), CFrame.new(.52, .27, 0) * CFrame.Angles(0, .5, -.4),
+            gold, Enum.PartType.Cylinder)
+    elseif kind == "pick" then
+        shape(Vector3.new(.22, 1.7, .24), CFrame.Angles(0, 0, -.34), Color3.fromRGB(146, 99, 62))
+        shape(Vector3.new(1.38, .32, .31), CFrame.new(.29, .75, 0) * CFrame.Angles(0, 0, -.34), mint)
+    else
+        local frame = Color3.fromRGB(143, 119, 208)
+        shape(Vector3.new(.29, 1.7, .36), CFrame.new(-.65, 0, 0), frame)
+        shape(Vector3.new(.29, 1.7, .36), CFrame.new(.65, 0, 0), frame)
+        shape(Vector3.new(1.6, .25, .36), CFrame.new(0, .83, 0), gold)
+        shape(Vector3.new(1.19, 1.41, .09), CFrame.new(0, 0, .02), frame)
+    end
+    return viewport
+end
+for index, step in ipairs(diagrams) do
+    local card = create("Frame", guidePages[1], {
+        LayoutOrder = index, Size = UDim2.new(1, -8, 0, 84), BackgroundColor3 = slate, BorderSizePixel = 0,
+    })
+    outline(card)
+    illustration(card, step[3])
+    text(card, step[1], 14, white, offset(85, 7), offset(172, 22), true)
+    local description = text(card, step[2], 12, soft, offset(85, 29), offset(173, 49))
+    description.TextWrapped = true
+    description.TextTruncate = Enum.TextTruncate.None
+end
+
+local welcomeScale
+do
+    local welcomeRemote = ReplicatedStorage:WaitForChild("DismissWelcome")
+    local welcome = create("ScreenGui", gui.Parent, {
+        Name = "MeadowWelcomeScreen", ResetOnSpawn = false, DisplayOrder = 20, Enabled = false,
+        IgnoreGuiInset = true,
+    })
+    local shade = create("TextButton", welcome, {
+        Name = "WelcomeScrim", Text = "", Modal = true, Selectable = false, AutoButtonColor = false,
+        Size = UDim2.fromScale(1, 1), BorderSizePixel = 0, BackgroundColor3 = Color3.fromRGB(11, 16, 21),
+        BackgroundTransparency = .23,
+    })
+    local card = create("Frame", shade, {
+        Name = "WelcomePanel", AnchorPoint = Vector2.new(.5, .5), Position = UDim2.fromScale(.5, .5),
+        Size = offset(424, 322), BackgroundColor3 = ink, Active = true,
+    })
+    outline(card)
+    welcomeScale = create("UIScale", card, {})
+    create("Frame", card, {
+        Position = offset(1, 1), Size = offset(422, 55), BorderSizePixel = 0,
+        BackgroundColor3 = slate,
+    })
+    text(card, "WELCOME TO MEADOW", 25, white, offset(14, 6), offset(395, 37), true)
+    text(card, "CRYSTAL MINING SIMULATOR", 12, mint, offset(15, 39), offset(394, 16), true)
+    text(card, "Fill your bag, sell the haul, and gear up for deeper caves.", 16, white,
+        offset(15, 66), offset(394, 22))
+
+    local steps = {
+        {"1. Mine", "Take the free Meadow Mine portal. Walk up to ore to mine.", "crystal"},
+        {"2. Sell", "Trade your haul at the gold stall in Meadow.", "coins"},
+        {"3. Forge", "Buy Iron at the blue forge, then save for Amethyst Cavern.", "pick"},
+    }
+    for index, step in ipairs(steps) do
+        local tile = create("Frame", card, {
+            Name = step[3] .. " Step", Position = offset(14 + (index - 1) * 134, 97),
+            Size = offset(128, 137), BackgroundColor3 = slate,
+        })
+        outline(tile)
+        local view = illustration(tile, step[3])
+        view.Size, view.Position = offset(110, 65), offset(9, 6)
+        text(tile, step[1], 16, gold, offset(8, 74), offset(112, 19), true)
+        local details = text(tile, step[2], 13, soft, offset(8, 93), offset(112, 39))
+        details.TextWrapped = true
+        details.TextTruncate = Enum.TextTruncate.None
+        details.TextYAlignment = Enum.TextYAlignment.Top
+    end
+    local firstStop = text(card, "First stop: Guild Commissions. Follow the trail marker.", 14, mint,
+        offset(14, 244), offset(395, 25), true)
+    firstStop.TextWrapped = true
+    local start = button(card, "Start Mining", offset(132, 274), offset(160, 36))
+    start.Name = "StartMining"
+    start.BackgroundColor3 = mint
+    start.TextColor3 = ink
+    start.TextSize = 18
+
+    local dismissed = false
+    local function showWelcome(show)
+        if welcome.Enabled == show then return end
+        welcome.Enabled = show
+        if show then
+            ContextActionService:BindActionAtPriority("MeadowWelcomeMovement", function()
+                return Enum.ContextActionResult.Sink
+            end, false, Enum.ContextActionPriority.High.Value + 1,
+                Enum.PlayerActions.CharacterForward, Enum.PlayerActions.CharacterBackward,
+                Enum.PlayerActions.CharacterLeft, Enum.PlayerActions.CharacterRight, Enum.PlayerActions.CharacterJump)
+            if UserInputService:GetLastInputType().Name:match("^Gamepad") then GuiService.SelectedObject = start end
+        else
+            ContextActionService:UnbindAction("MeadowWelcomeMovement")
+            if GuiService.SelectedObject == start then GuiService.SelectedObject = nil end
+        end
+    end
+
+    local function updateWelcome()
+        showWelcome(not dismissed and player:GetAttribute("WelcomeSeen") == 0)
+    end
+    start.Activated:Connect(function()
+        dismissed = true
+        showWelcome(false)
+        welcomeRemote:FireServer()
+    end)
+    player:GetAttributeChangedSignal("WelcomeSeen"):Connect(updateWelcome)
+    updateWelcome()
+end
+
+local returnRemote = ReplicatedStorage:WaitForChild("ReturnToMeadow")
+local home = button(guidePages[2], "Return to Meadow", offset(0, 0), UDim2.new(1, -8, 0, 32))
+home.LayoutOrder = 0
+home.Visible = false
+home.Activated:Connect(function()
+    if home.Visible then returnRemote:FireServer() end
+end)
+local atlasRows = {}
+for index, zone in ipairs(config.Zones) do
+    local row = create("Frame", guidePages[2], {
+        LayoutOrder = index, Size = UDim2.new(1, -8, 0, 70), BackgroundColor3 = slate, BorderSizePixel = 0,
+    })
+    outline(row)
+    text(row, index == 1 and "Meadow Mine" or zone.Name, 13, zone.Color, offset(9, 3), offset(250, 21), true)
+    text(row, zone.Ore .. "  •  " .. (config.CaveMastery[index].Trial or "First Haul"),
+        11, soft, offset(9, 24), offset(249, 18))
+    atlasRows[index] = text(row, "", 12, mint, offset(9, 43), offset(249, 20), true)
+end
+
+mute.Parent = guidePages[3]
+mute.Size = UDim2.new(1, -8, 0, 36)
+mute.LayoutOrder = 2
+mute.Text = "Sound effects: On"
+local music = button(guidePages[3], "Music: On", offset(0, 0), UDim2.new(1, -8, 0, 36))
+music.LayoutOrder = 3
+music.Activated:Connect(function()
+    audio:setMusic(not audio.Music)
+    music.Text = audio.Music and "Music: On" or "Music: Off"
+    music.TextColor3 = audio.Music and mint or soft
+end)
+local labelsVisible = true
+local labels = button(guidePages[3], "Floating names: On", offset(0, 0), UDim2.new(1, -8, 0, 36))
+local displayNote = text(guidePages[3], "Hide floating names for this session. Signs, waypoints, and prompts stay visible.",
+    12, soft, offset(0, 0), UDim2.new(1, -9, 0, 49))
+displayNote.LayoutOrder = 1
+displayNote.TextWrapped = true
+displayNote.TextTruncate = Enum.TextTruncate.None
+local function showWorldLabel(label) label.Enabled = labelsVisible end
+labels.Activated:Connect(function()
+    labelsVisible = not labelsVisible
+    labels.Text = labelsVisible and "Floating names: On" or "Floating names: Off"
+    for _, label in ipairs(CollectionService:GetTagged("MiningWorldLabel")) do showWorldLabel(label) end
+end)
+CollectionService:GetInstanceAddedSignal("MiningWorldLabel"):Connect(showWorldLabel)
+
 local collection = create("Frame", body, {
     BackgroundTransparency = 1, Position = offset(0, 39), Size = offset(278, 190), Visible = false,
 })
@@ -3554,6 +5214,7 @@ local premiumRemote = ReplicatedStorage:WaitForChild("PremiumAction")
 local function ownsItem(crate, index)
     if index == 0 then return true end
     local entry = config[crate.Pool][index]
+    if entry.Pass then return player:GetAttribute("PassOwned" .. entry.Pass) == true end
     if entry.Premium then
         return config.owns(player:GetAttribute("PremiumRewards") or 0, entry.Premium)
     end
@@ -3561,7 +5222,7 @@ local function ownsItem(crate, index)
 end
 local collectionGroups = {}
 for group, crate in ipairs(config.Crates) do
-    local header = button(collection, collectionNames[group], offset((group - 1) * 70, 0), offset(66, 26))
+    local header = button(collection, collectionNames[group], offset((group - 1) * 56, 0), offset(53, 26))
     local scroll = catalog(collection, 57, 131)
     local about = text(scroll, "", 12, gold, offset(0, 0), offset(269, 22), true)
     about.LayoutOrder = -1
@@ -3592,7 +5253,7 @@ local function showCollection(selected)
         group.Header.TextColor3 = active and mint or white
     end
 end
-local premiumHeader = button(collection, "Premium", offset(210, 0), offset(68, 26))
+local premiumHeader = button(collection, "Shards", offset(168, 0), offset(53, 26))
 local wallet = text(collection, "", 13, gold, offset(0, 29), offset(278, 25), true)
 local premiumScroll = catalog(collection, 56, 132)
 collectionGroups[4] = { Header = premiumHeader, Scroll = premiumScroll, Price = wallet }
@@ -3600,9 +5261,8 @@ local topUpButtons = {}
 for index, pack in ipairs(config.StarshardProducts) do
     local row = button(premiumScroll, "", offset(0, 0), UDim2.new(1, -8, 0, 34))
     row.LayoutOrder = index - #config.StarshardProducts
-    row.Visible = pack.ProductId > 0 or (index == 1 and config.StarshardProducts[2].ProductId <= 0)
     row.Activated:Connect(function()
-        if pack.ProductId > 0 and player:GetAttribute("PremiumReady") then
+        if config.StarshardSalesEnabled and pack.ProductId > 0 and player:GetAttribute("PremiumReady") then
             premiumRemote:FireServer("TopUp", index)
         end
     end)
@@ -3615,12 +5275,53 @@ for index, crate in ipairs(config.PremiumCrates) do
     row.TextWrapped = true
     row.LayoutOrder = index
     row.Activated:Connect(function()
-        if player:GetAttribute("PremiumReady") and not config.owns(player:GetAttribute("PremiumRewards") or 0, index) then
+        if config.StarshardSalesEnabled and player:GetAttribute("PremiumReady")
+            and not config.owns(player:GetAttribute("PremiumRewards") or 0, index) then
             premiumRemote:FireServer("Open", index)
         end
     end)
     premiumButtons[index] = row
 end
+local passesHeader = button(collection, "Passes", offset(224, 0), offset(54, 26))
+local passInfo = text(collection, config.GamePassSalesEnabled and "Permanent cosmetics • Roblox shows the Robux price"
+    or "Gamepasses (in development)", 12,
+    soft, offset(0, 29), offset(278, 25))
+local passScroll = catalog(collection, 56, 132)
+collectionGroups[5] = { Header = passesHeader, Scroll = passScroll, Price = passInfo }
+local passButtons = {}
+for index, pass in ipairs(config.GamePasses) do
+    local row = create("Frame", passScroll, {
+        LayoutOrder = index, Size = UDim2.new(1, -8, 0, 95), BackgroundColor3 = slate, BorderSizePixel = 0,
+    })
+    outline(row)
+    local title = pass.Name .. (config.GamePassSalesEnabled and "" or " (in development)")
+    text(row, title, 14, white, offset(9, 5), offset(199, 20), true)
+    for slot, pool in ipairs({config.Skins, config.Auras}) do
+        for _, item in ipairs(pool) do
+            if item.Pass == index then
+                local swatch = create("Frame", row, {
+                    Position = offset(204 + slot * 15, 9), Size = offset(11, 11),
+                    BackgroundColor3 = item.Color, BorderSizePixel = 0,
+                })
+                outline(swatch)
+                break
+            end
+        end
+    end
+    local contents = text(row, pass.Finish .. " finish • " .. pass.Aura .. " aura", 11, soft,
+        offset(9, 26), offset(249, 29))
+    contents.TextWrapped = true
+    contents.TextTruncate = Enum.TextTruncate.None
+    local purchase = button(row, "", offset(9, 59), offset(241, 28))
+    purchase.TextSize = 12
+    purchase.Activated:Connect(function()
+        if config.GamePassSalesEnabled and pass.Id > 0 and player:GetAttribute("PassOwned" .. index) ~= true then
+            premiumRemote:FireServer("Pass", index)
+        end
+    end)
+    passButtons[index] = purchase
+end
+for _, group in ipairs(collectionGroups) do group.Header.TextSize = 12 end
 showCollection(1)
 for index, group in ipairs(collectionGroups) do
     group.Header.Activated:Connect(function() showCollection(index) end)
@@ -3643,9 +5344,8 @@ local bag = text(status, "", 13, soft, offset(0, 54), offset(278, 17))
 local track = create("Frame", status, {
     Position = offset(0, 77), Size = offset(278, 8), BorderSizePixel = 0, BackgroundColor3 = slate,
 })
-round(track, 4)
+outline(track)
 local fill = create("Frame", track, { Size = UDim2.fromScale(0, 1), BackgroundColor3 = mint, BorderSizePixel = 0 })
-round(fill, 4)
 local pickLabel = text(status, "", 13, white, offset(0, 95), offset(278, 19), true)
 local nextPick = text(status, "", 12, soft, offset(0, 118), offset(278, 17))
 local petLabel = text(status, "", 12, soft, offset(0, 141), offset(278, 17))
@@ -3655,7 +5355,7 @@ local guideCard = create("Frame", status, {
     Position = offset(0, 184), Size = offset(278, 38), BackgroundColor3 = slate, BorderSizePixel = 0,
     Visible = false,
 })
-round(guideCard, 8)
+outline(guideCard)
 local guide = text(guideCard, "", 12, mint, offset(10, 0), offset(258, 38), true)
 guide.TextWrapped = true
 guide.TextTruncate = Enum.TextTruncate.None
@@ -3669,7 +5369,85 @@ trailLabel.TextWrapped = true
 trailLabel.TextTruncate = Enum.TextTruncate.None
 trailLabel.BackgroundColor3 = ink
 trailLabel.BackgroundTransparency = .1
-round(trailLabel, 8)
+outline(trailLabel)
+do
+    local travelCard = create("Frame", gui, {
+        Name = "TeleporterStatus", AnchorPoint = Vector2.new(.5, 1), Position = UDim2.new(.5, 0, 1, -135),
+        Size = offset(252, 56), BackgroundColor3 = ink, BackgroundTransparency = .14, Visible = false,
+    })
+    outline(travelCard)
+    local title = text(travelCard, "", 15, white, offset(10, 3), offset(232, 21), true)
+    title.Name = "Destination"
+    local status = text(travelCard, "", 13, gold, offset(10, 25), offset(232, 28), true)
+    status.Name = "Availability"
+    status.TextWrapped = true
+    status.TextTruncate = Enum.TextTruncate.None
+    local shown
+    local function refreshTravel()
+        if not shown or not shown.Parent then return end
+        local pad = shown.Parent
+        local index = pad:GetAttribute("TravelDestination")
+        local owned = player:GetAttribute("Zone") or 1
+        local coins = player:GetAttribute("Coins") or 0
+        local state, action, open = config.travelAvailability(index, owned, coins)
+        title.Text = pad:GetAttribute("TravelTitle")
+        status.Text, status.TextColor3 = state, open and mint or gold
+        shown.ActionText = action
+    end
+    ProximityPromptService.PromptShown:Connect(function(prompt)
+        if not prompt.Parent or prompt.Parent:GetAttribute("TravelDestination") == nil then return end
+        shown = prompt
+        refreshTravel()
+        travelCard.Visible = true
+    end)
+    ProximityPromptService.PromptHidden:Connect(function(prompt)
+        if shown ~= prompt then return end
+        shown = nil
+        travelCard.Visible = false
+    end)
+    player:GetAttributeChangedSignal("Zone"):Connect(refreshTravel)
+    player:GetAttributeChangedSignal("Coins"):Connect(refreshTravel)
+end
+
+local oreFocus = create("Frame", gui, {
+    AnchorPoint = Vector2.new(.5, 1), Position = UDim2.new(.5, 0, 1, -135),
+    Size = offset(218, 51), BackgroundColor3 = ink, BorderSizePixel = 0, Visible = false,
+})
+outline(oreFocus)
+local focusName = text(oreFocus, "", 12, white, offset(10, 4), offset(199, 20), true)
+local focusTrack = create("Frame", oreFocus, {
+    Position = offset(10, 31), Size = offset(198, 8), BackgroundColor3 = slate, BorderSizePixel = 0,
+})
+outline(focusTrack)
+local focusFill = create("Frame", focusTrack, {
+    Size = UDim2.fromScale(1, 1), BackgroundColor3 = mint, BorderSizePixel = 0,
+})
+local focusPrompt, healthConnection
+local function clearOreFocus()
+    if healthConnection then healthConnection:Disconnect(); healthConnection = nil end
+    focusPrompt = nil
+    oreFocus.Visible = false
+end
+ProximityPromptService.PromptShown:Connect(function(prompt)
+    local ore = prompt.Parent
+    if prompt.ActionText ~= "Mine" or not ore or not ore:GetAttribute("OreMaxHealth") then return end
+    clearOreFocus()
+    focusPrompt = prompt
+    local function refreshHealth()
+        local hp = ore:GetAttribute("OreHealth") or 0
+        local maxHealth = ore:GetAttribute("OreMaxHealth")
+        focusName.Text = (ore:GetAttribute("OreTitle") or "Crystal") .. "  •  " .. hp .. "/" .. maxHealth
+        focusFill.Size = UDim2.fromScale(math.clamp(hp / maxHealth, 0, 1), 1)
+        focusFill.BackgroundColor3 = hp <= maxHealth / 3 and gold or mint
+        oreFocus.Visible = hp > 0
+    end
+    healthConnection = ore:GetAttributeChangedSignal("OreHealth"):Connect(refreshHealth)
+    refreshHealth()
+end)
+ProximityPromptService.PromptHidden:Connect(function(prompt)
+    if focusPrompt == prompt then clearOreFocus() end
+end)
+
 local descentTracker = text(gui, "", 13, gold, UDim2.new(.5, 0, 1, -135), offset(251, 46), true)
 descentTracker.AnchorPoint = Vector2.new(.5, 1)
 descentTracker.TextXAlignment = Enum.TextXAlignment.Center
@@ -3678,7 +5456,7 @@ descentTracker.BackgroundTransparency = .1
 descentTracker.TextWrapped = true
 descentTracker.TextTruncate = Enum.TextTruncate.None
 descentTracker.Visible = false
-round(descentTracker, 8)
+outline(descentTracker)
 local function refreshDescentTimer()
     local deadline = player:GetAttribute("DescentDeadline") or 0
     descentTracker.Visible = deadline > workspace:GetServerTimeNow()
@@ -3710,7 +5488,7 @@ chainTracker.TextXAlignment = Enum.TextXAlignment.Center
 chainTracker.BackgroundColor3 = ink
 chainTracker.BackgroundTransparency = .1
 chainTracker.Visible = false
-round(chainTracker, 8)
+outline(chainTracker)
 local function refreshChainTimer()
     local deadline = player:GetAttribute("VeinChainDeadline") or 0
     chainTracker.Visible = deadline > workspace:GetServerTimeNow()
@@ -3737,7 +5515,7 @@ relayTimer.TextXAlignment = Enum.TextXAlignment.Center
 relayTimer.BackgroundColor3 = ink
 relayTimer.BackgroundTransparency = .1
 relayTimer.Visible = false
-round(relayTimer, 8)
+outline(relayTimer)
 local function refreshRelayTimer()
     local deadline = player:GetAttribute("RelayDeadline") or 0
     relayTimer.Visible = deadline > 0
@@ -3760,21 +5538,18 @@ local heatPanel = create("Frame", gui, {
     AnchorPoint = Vector2.new(.5, 1), Position = UDim2.new(.5, 0, 1, -137),
     Size = offset(246, 69), BackgroundColor3 = ink, BorderSizePixel = 0, Visible = false,
 })
-round(heatPanel, 10)
-create("UIStroke", heatPanel, { Color = slate, Thickness = 1.5 })
+outline(heatPanel)
 local heatTitle = text(heatPanel, "", 14, gold, offset(12, 5), offset(222, 20), true)
 local heatTrack = create("Frame", heatPanel, {
     Position = offset(12, 31), Size = offset(222, 10), BorderSizePixel = 0, BackgroundColor3 = slate,
 })
-round(heatTrack, 4)
+outline(heatTrack)
 local successBand = create("Frame", heatTrack, {
     BorderSizePixel = 0, BackgroundColor3 = Color3.fromRGB(80, 173, 151),
 })
-round(successBand, 4)
 local heatCursor = create("Frame", heatTrack, {
     AnchorPoint = Vector2.new(.5, .5), Size = offset(4, 16), BorderSizePixel = 0, BackgroundColor3 = white,
 })
-round(heatCursor, 2)
 local heatHint = text(heatPanel, "", 12, soft, offset(12, 46), offset(222, 16), true)
 
 local heatConnection
@@ -3823,7 +5598,7 @@ local function addOreMarker(ore)
     caption.TextXAlignment = Enum.TextXAlignment.Center
     caption.BackgroundColor3 = ink
     caption.BackgroundTransparency = .18
-    round(caption, 7)
+    outline(caption)
     oreMarkers[ore] = marker
 end
 local function refreshOreMarkers()
@@ -3838,33 +5613,49 @@ CollectionService:GetInstanceRemovedSignal(richTag):Connect(removeOreMarker)
 player:GetAttributeChangedSignal("SurveyorLantern"):Connect(refreshOreMarkers)
 refreshOreMarkers()
 
-local waypointName
+local waypointName, waypointInstruction
 local function refreshWaypoint()
     local world = workspace:FindFirstChild("CrystalWorld")
+    local character = player.Character
+    local root = character and character:FindFirstChild("HumanoidRootPart")
+    local biome = root and config.biomeAt(root.Position.X)
+    home.Visible = root ~= nil and biome ~= 1
     local target
+    trailLabel.Text = waypointInstruction or ""
     if world and waypointName then
-        if waypointName == "Mine Entrance" then
-            local meadow = world:FindFirstChild("Meadow")
-            target = meadow and meadow:FindFirstChild(waypointName, true)
+        local grounds = world:FindFirstChild("Meadow Mine Grounds")
+        local zone = config.Zones[biome]
+        local localArea = biome == config.StarterMineBiome and grounds or zone and world:FindFirstChild(zone.Name)
+        if biome == config.StarterMineBiome and waypointName == "Mine Entrance" then
+            target = grounds and grounds:FindFirstChild("Mine Entrance", true)
+        elseif biome and biome ~= 1 then
+            target = localArea and localArea:FindFirstChild(waypointName)
+            if not target and localArea then
+                target = localArea:FindFirstChild("Return to Meadow")
+                trailLabel.Text = "Return to Meadow"
+            end
         else
-            local frozen = world:FindFirstChild(config.Zones[config.Whiteout.Zone].Name)
-            target = world:FindFirstChild(waypointName) or (frozen and frozen:FindFirstChild(waypointName))
+            target = world:FindFirstChild(waypointName == "Mine Entrance" and "Travel to Meadow Mine" or waypointName)
         end
     end
     trail.Adornee = target
     trail.Enabled = target ~= nil
 end
 workspace.DescendantAdded:Connect(function(instance)
-    if waypointName and instance.Name == waypointName then
+    if waypointName and (instance.Name == waypointName or instance.Name == "Travel to Meadow Mine"
+        or instance.Name == "Return to Meadow") then
         task.defer(refreshWaypoint)
     end
+end)
+player.CharacterAdded:Connect(function(character)
+    if character:WaitForChild("HumanoidRootPart", 10) then refreshWaypoint() end
 end)
 
 local function catalogRow(parent, index, name, description)
     local row = create("Frame", parent, {
         LayoutOrder = index, Size = UDim2.new(1, -8, 0, 44), BackgroundColor3 = slate, BorderSizePixel = 0,
     })
-    round(row, 8)
+    outline(row)
     text(row, name, 13, white, offset(9, 3), offset(155, 20), true)
     text(row, description, 11, soft, offset(9, 23), offset(150, 15))
     local caption = text(row, "", 11, soft, offset(155, 0), offset(106, 44), true)
@@ -3873,7 +5664,8 @@ local function catalogRow(parent, index, name, description)
 end
 local rows, bagRows = {}, {}
 for index, pick in ipairs(config.Picks) do
-    rows[index] = catalogRow(forge, index, pick.Name .. " Pickaxe", pick.Power .. " mining power")
+    local stats = string.format("%d power • %.2fs per swing", pick.Power, pick.SwingCooldown)
+    rows[index] = catalogRow(forge, index, pick.Name .. " Pickaxe", stats)
 end
 for index, upgrade in ipairs(config.Bags) do
     bagRows[index] = catalogRow(bags, index, upgrade.Name, upgrade.Capacity .. " base capacity")
@@ -3882,21 +5674,22 @@ end
 local toast = create("TextLabel", gui, {
     AnchorPoint = Vector2.new(.5, 1), Position = UDim2.new(.5, 0, 1, -83),
     Size = UDim2.new(.9, 0, 0, 42), BackgroundColor3 = ink, BackgroundTransparency = .06,
-    TextColor3 = white, TextSize = 14, Font = Enum.Font.GothamBold, TextWrapped = true,
+    TextColor3 = white, TextSize = 14, Font = Enum.Font.SourceSansBold, TextWrapped = true,
     Text = "", Visible = false,
 })
-round(toast, 10)
+outline(toast)
 create("UISizeConstraint", toast, { MaxSize = Vector2.new(490, 42) })
 create("UIPadding", toast, { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) })
 
 local pages = {
-    { statusTab, status }, { forgeTab, forge }, { bagsTab, bags }, { ordersTab, orders }, { cratesTab, collection }, { cavesTab, caves },
+    { statusTab, status }, { forgeTab, forge }, { bagsTab, bags }, { ordersTab, orders }, { cratesTab, collection }, { cavesTab, caves }, { guideTab, fieldGuide },
 }
 local function showPage(selected)
     for _, entry in ipairs(pages) do
         local active = entry == selected
         entry[1].TextColor3 = active and ink or white
         entry[1].BackgroundColor3 = active and mint or slate
+        entry[1].BackgroundTransparency = active and .16 or .32
         entry[2].Visible = active
     end
 end
@@ -3907,11 +5700,17 @@ end
 local pageTop = 39
 local function setExpanded(expanded)
     body.Visible = expanded
+    nextObjective.Visible = not expanded and nextObjective.Text ~= ""
     body.Size = offset(278, pageTop + 224)
-    panel.Size = offset(panelWidth, expanded and bodyTop + pageTop + 234 or foldedHeight)
-    collapse.Text = expanded and "Close" or "Open"
+    panel.Size = offset(panelWidth, expanded and bodyTop + pageTop + 234 or (nextObjective.Visible and 99 or foldedHeight))
+    collapse.Text = expanded and "Close" or "Menu"
 end
 collapse.Activated:Connect(function() setExpanded(not body.Visible) end)
+guideShortcut.Activated:Connect(function()
+    setExpanded(true)
+    showPage(pages[7])
+    showGuide(1)
+end)
 
 local function number(value)
     local grouped = tostring(value):reverse():gsub("(%d%d%d)", "%1,"):reverse()
@@ -3923,21 +5722,36 @@ local function refresh()
     local balanceReady = player:GetAttribute("PremiumReady")
     local premiumBalance = player:GetAttribute("Starshards") or 0
     local rewards = player:GetAttribute("PremiumRewards") or 0
-    wallet.Text = balanceReady and (number(premiumBalance) .. " Starshards • Robux only") or "Starshard wallet unavailable"
+    wallet.Text = not config.StarshardSalesEnabled and "Starshards (in development)"
+        or balanceReady and (number(premiumBalance) .. " Starshards • Robux only") or "Starshard wallet unavailable"
     for index, row in ipairs(topUpButtons) do
         local pack = config.StarshardProducts[index]
-        local enabled = balanceReady and pack.ProductId > 0
-        row.Text = enabled and ("Buy " .. pack.Amount .. " Starshards with Robux") or "Robux top-ups unavailable"
+        local enabled = config.StarshardSalesEnabled and balanceReady and pack.ProductId > 0
+        row.Text = not config.StarshardSalesEnabled and (pack.Amount .. " Starshards (in development)")
+            or enabled and ("Buy " .. pack.Amount .. " Starshards with Robux") or (pack.Amount .. " Starshards unavailable")
         row.AutoButtonColor = enabled == true
+        row.Selectable = enabled == true
         row.TextColor3 = enabled and mint or soft
     end
     for index, crate in ipairs(config.PremiumCrates) do
         local owned = config.owns(rewards, index)
         local row = premiumButtons[index]
-        row.Text = crate.Name .. " • " .. (owned and "Owned" or crate.Cost .. " Starshards")
+        local state = owned and "Owned" or not config.StarshardSalesEnabled and "(in development)" or crate.Cost .. " Starshards"
+        row.Text = crate.Name .. " • " .. state
             .. "\nGuaranteed: " .. crate.Reward
-        row.AutoButtonColor = balanceReady == true and not owned
+        row.AutoButtonColor = config.StarshardSalesEnabled and balanceReady == true and not owned
+        row.Selectable = row.AutoButtonColor
         row.TextColor3 = owned and mint or white
+    end
+    for index, purchase in ipairs(passButtons) do
+        local pass = config.GamePasses[index]
+        local owned = player:GetAttribute("PassOwned" .. index) == true
+        local enabled = config.GamePassSalesEnabled and pass.Id > 0
+        purchase.Text = owned and "Owned • equip in Skins and Auras"
+            or enabled and "View Roblox price" or "(in development)"
+        purchase.AutoButtonColor = enabled and not owned
+        purchase.Selectable = purchase.AutoButtonColor
+        purchase.TextColor3 = owned and mint or enabled and white or soft
     end
     for group, crate in ipairs(config.Crates) do
         local selected = player:GetAttribute(crate.Equipped) or 0
@@ -3945,9 +5759,13 @@ local function refresh()
             local row = collectionGroups[group].Rows[index]
             local entry = config[crate.Pool][index]
             local unlocked = ownsItem(crate, index)
-            local label = entry and (entry.Name .. " • " .. (entry.Premium and "Premium" or entry.Expedition and "Expedition" or entry.Specimen and "Collection" or entry.Weight .. "%")) or "Default"
+            local inDevelopment = entry and ((entry.Pass and not config.GamePassSalesEnabled)
+                or (entry.Premium and not config.StarshardSalesEnabled))
+            local label = entry and (entry.Name .. " • " .. (inDevelopment and "(in development)" or entry.Pass and "Pass"
+                or entry.Premium and "Premium" or entry.Expedition and "Expedition" or entry.Specimen and "Collection" or entry.Weight .. "%")) or "Default"
             if entry and entry.Bonus then label ..= " • +" .. entry.Bonus end
-            row.Text = label .. (selected == index and unlocked and "   Equipped" or unlocked and "   Equip" or "   Locked")
+            row.Text = label .. (selected == index and unlocked and "   Equipped" or unlocked and "   Equip"
+                or inDevelopment and "" or "   Locked")
             row.TextColor3 = selected == index and unlocked and mint or unlocked and white or soft
             row.AutoButtonColor = unlocked and selected ~= index
         end
@@ -3964,8 +5782,11 @@ local function refresh()
     if crystals > sorted then ores[#ores + 1] = "Unsorted " .. number(crystals - sorted) end
     oreList.Text = #ores > 0 and table.concat(ores, "  •  ") or "Your bag is empty."
     local reserve = player:GetAttribute("AmethystReserve") or 0
+    local frostReserve = player:GetAttribute("FrostReserve") or 0
     recipeInfo.Text = player:GetAttribute("SurveyorLantern") == 1 and "Surveyor’s Lantern equipped"
         or string.format("Lantern: %d/%d Amethyst set aside at the Meadow workbench", reserve, config.SurveyorLantern.Cost)
+    recipeInfo.Text ..= player:GetAttribute("FrostSeal") == 1 and "\nFrost Seal equipped • +35 capacity"
+        or string.format("\nFrost Seal: %d/%d Frost Ore at the Meadow press", frostReserve, config.FrostSeal.Cost)
     local capacity = player:GetAttribute("Capacity") or 50
     local tier = player:GetAttribute("Pick") or 1
     local pick = config.Picks[tier]
@@ -3976,6 +5797,13 @@ local function refresh()
     local discoveries = player:GetAttribute("Discoveries") or 0
     local auras = player:GetAttribute("AurasOwned") or 0
     local unlockedZone = player:GetAttribute("Zone") or 1
+    for index, row in ipairs(atlasRows) do
+        local zone = config.Zones[index]
+        row.Text = index == 1 and "Free portal near Meadow spawn"
+            or index <= unlockedZone and "Open  •  travel from Meadow"
+            or (number(zone.Cost) .. " coins  •  unlock at its wayshrine")
+        row.TextColor3 = index <= unlockedZone and mint or gold
+    end
     local specimens = player:GetAttribute("Specimens") or 0
     local compass = config.GeodeCompass
     compassInfo.Text = player:GetAttribute("GeodeCompass") == 1
@@ -4027,6 +5855,13 @@ local function refresh()
             OrderCrystals = sales, GuidedOrder = guided and 1 or 0,
         })
     end
+    local journey = instruction or config.nextJourneyGoal({
+        Zone = unlockedZone, Rebirths = rebirths, Lantern = player:GetAttribute("SurveyorLantern") == 1,
+        Amethyst = player:GetAttribute(config.oreKey(config.SurveyorLantern.Zone)) or 0,
+        Reserve = reserve, Auras = auras,
+    })
+    nextObjective.Text = journey and ("Next: " .. journey) or ""
+    setExpanded(body.Visible)
     local relayStop = config.Whiteout.Route[player:GetAttribute("RelayStop") or 0]
     if relayStop and (player:GetAttribute("RelayDeadline") or 0) > 0 then
         destination, instruction = relayStop.Name, relayStop.Hint
@@ -4043,14 +5878,11 @@ local function refresh()
         end
         guide.Text = table.concat(readings, "   •   ")
     else
-        guide.Text = instruction or ""
+        guide.Text = instruction or journey or ""
     end
     guideCard.Visible = guide.Text ~= ""
-    trailLabel.Text = instruction or ""
-    if waypointName ~= destination then
-        waypointName = destination
-        refreshWaypoint()
-    end
+    waypointName, waypointInstruction = destination, instruction
+    refreshWaypoint()
     local readyToClaim = assignedZone > 0 and nodes >= nodeTarget and sales >= saleTarget
     orderTitle.Text = title
     orderZone.Text = config.Zones[orderLocation].Name .. "  •  " .. completed .. " completed"
@@ -4105,11 +5937,17 @@ end
 for _, attribute in ipairs({ "Coins", "Crystals", "Capacity", "Pick", "Zone", "Pet", "Rebirths", "Discoveries", "Bag", "Orders", "OrderZone", "OrderNodes", "OrderCrystals", "GuidedOrder",
     "PetsOwned", "SkinsOwned", "AurasOwned", "Skin", "Aura", "Starshards", "PremiumRewards", "PremiumReady", "RelayStop", "RelayDeadline", "TideSettings",
     "CaveNodes1", "CaveNodes2", "CaveNodes3", "CaveNodes4", "CaveNodes5",
-    "Ore1", "Ore2", "Ore3", "Ore4", "Ore5", "SurveyorLantern", "AmethystReserve",
-    "Geodes1", "Geodes2", "Geodes3", "Geodes4", "Geodes5", "Specimens", "GeodeCompass", "HeartstoneTrophy" }) do
+    "Ore1", "Ore2", "Ore3", "Ore4", "Ore5", "SurveyorLantern", "AmethystReserve", "FrostSeal", "FrostReserve",
+    "Geodes1", "Geodes2", "Geodes3", "Geodes4", "Geodes5", "Specimens", "GeodeCompass", "HeartstoneTrophy", "PassOwned1", "PassOwned2" }) do
     player:GetAttributeChangedSignal(attribute):Connect(refresh)
 end
 refresh()
+
+for _, item in ipairs(panel:GetDescendants()) do
+    if (item:IsA("Frame") or item:IsA("TextButton")) and item.BackgroundColor3 == slate then
+        item.BackgroundTransparency = .32
+    end
+end
 
 local viewportConnection
 local function watchCamera()
@@ -4119,6 +5957,7 @@ local function watchCamera()
     local function layout()
         local viewport = camera.ViewportSize
         if viewport.X < 100 or viewport.Y < 100 then return end
+        welcomeScale.Scale = math.min(1, (viewport.X - 24) / 424, (viewport.Y - 24) / 322)
         local compact = viewport.X < 560
         pageTop = compact and 87 or 39
         local openHeight = bodyTop + pageTop + 234
@@ -4126,13 +5965,13 @@ local function watchCamera()
         for index, entry in ipairs(pages) do
             local tab = entry[1]
             if compact then
-                tab.Position = offset(((index - 1) % 3) * 94, math.floor((index - 1) / 3) * 42)
-                tab.Size = offset(90, 38)
+                tab.Position = offset(((index - 1) % 4) * 70, math.floor((index - 1) / 4) * 42)
+                tab.Size = offset(68, 38)
                 tab.TextSize = 14
             else
-                tab.Position = offset((index - 1) * 47, 0)
-                tab.Size = offset(index == #pages and 43 or 44, 33)
-                tab.TextSize = 12
+                tab.Position = offset((index - 1) * 40, 0)
+                tab.Size = offset(38, 33)
+                tab.TextSize = 11
             end
             entry[2].Position = offset(0, pageTop)
         end
@@ -4144,32 +5983,12 @@ end
 workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(watchCamera)
 watchCamera()
 
-local cues = {
-    resonance1 = {"electronicpingshort.wav", .24, .83},
-    resonance2 = {"electronicpingshort.wav", .24, 1.05},
-    resonance3 = {"electronicpingshort.wav", .27, 1.32},
-    hit = {"swordslash.wav", .13, 1.16},
-    ["break"] = {"switch.wav", .24, .82},
-    coins = {"electronicpingshort.wav", .19, 1.12},
-    buy = {"electronicpingshort.wav", .2, 1.35},
-    accept = {"switch.wav", .22, 1.1},
-    reward = {"electronicpingshort.wav", .22, 1.5},
-}
-local sounds = {}
-for key, cue in pairs(cues) do
-    sounds[key] = create("Sound", SoundService, {
-        Name = "Mining_" .. key, SoundId = "rbxasset://sounds/" .. cue[1],
-        Volume = cue[2], PlaybackSpeed = cue[3],
-    })
-end
-
 local dialogue = create("Frame", gui, {
     AnchorPoint = Vector2.new(.5, 1), Position = UDim2.new(.5, 0, 1, -83),
     Size = UDim2.new(.92, 0, 0, 112), BackgroundColor3 = ink, BorderSizePixel = 0, Visible = false,
 })
-round(dialogue, 12)
+outline(dialogue)
 create("UISizeConstraint", dialogue, { MaxSize = Vector2.new(466, 112) })
-create("UIStroke", dialogue, { Color = slate, Thickness = 1.5 })
 local speaker = text(dialogue, "", 14, gold, offset(13, 9), UDim2.new(1, -57, 0, 23), true)
 local dialogueLine = text(dialogue, "", 14, white, offset(13, 35), UDim2.new(1, -26, 0, 65))
 dialogueLine.TextWrapped = true
@@ -4182,10 +6001,21 @@ closeDialogue.Activated:Connect(function()
     dialogue.Visible = false
 end)
 
+local travelShade = create("Frame", gui, {
+    Size = UDim2.fromScale(1, 1), BackgroundColor3 = ink, BackgroundTransparency = 1,
+    BorderSizePixel = 0, ZIndex = 16,
+})
+local travelTween
 local toastVersion = 0
 local toastTween
 local toastEnd = UDim2.new(.5, 0, 1, -83)
-ReplicatedStorage:WaitForChild("MiningAction").OnClientEvent:Connect(function(message, cue, name, role)
+ReplicatedStorage:WaitForChild("MiningAction").OnClientEvent:Connect(function(message, cue, name, role, soundCue)
+    if cue == "passes" then
+        setExpanded(true)
+        showPage(pages[5])
+        showCollection(5)
+        return
+    end
     if cue == "caves" then
         setExpanded(true)
         showPage(pages[6])
@@ -4203,10 +6033,13 @@ ReplicatedStorage:WaitForChild("MiningAction").OnClientEvent:Connect(function(me
         end)
         return
     end
-    local sound = sounds[cue]
-    if sound and not muted then
-        sound.TimePosition = 0
-        sound:Play()
+    audio:cue(soundCue or cue)
+    if cue == "travel" then
+        task.delay(.18, refreshWaypoint)
+        if travelTween then travelTween:Cancel() end
+        travelShade.BackgroundTransparency = .44
+        travelTween = TweenService:Create(travelShade, TweenInfo.new(.38), { BackgroundTransparency = 1 })
+        travelTween:Play()
     end
     if not message then return end
     dialogue.Visible = false

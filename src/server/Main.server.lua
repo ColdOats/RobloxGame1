@@ -22,6 +22,13 @@ local mineRemote = Instance.new("RemoteEvent")
 mineRemote.Name = "SwingAtOre"
 mineRemote.Parent = RS
 local oreActions = {}
+local homeRemote = Instance.new("RemoteEvent")
+homeRemote.Name = "ReturnToMeadow"
+homeRemote.Parent = RS
+local welcomeRemote = Instance.new("RemoteEvent")
+welcomeRemote.Name = "DismissWelcome"
+welcomeRemote.Parent = RS
+local nextHome = {}
 local lastEquip = {}
 local relayRuns = {}
 local tideRuns = {}
@@ -33,7 +40,7 @@ local profiles, sessions, last, loading, departing = {}, {}, {}, {}, {}
 local function fresh()
  local profile = { Coins=0, Crystals=0, Pick=1, Zone=1, Pet=0, Rebirths=0, Discoveries=0,
   Bag=1, Orders=0, OrderZone=0, OrderNodes=0, OrderCrystals=0, GuidedOrder=0,
-  PetsOwned=0, SkinsOwned=0, AurasOwned=0, Skin=0, Aura=0, RelayBestMs=0, EmberBestMs=0, DeepLift=0, AmethystReserve=0, SurveyorLantern=0, Specimens=0, GeodeCompass=0, MasterBanked=0, HeartstoneTrophy=0 }
+  PetsOwned=0, SkinsOwned=0, AurasOwned=0, Skin=0, Aura=0, RelayBestMs=0, EmberBestMs=0, DeepLift=0, AmethystReserve=0, SurveyorLantern=0, Specimens=0, GeodeCompass=0, MasterBanked=0, HeartstoneTrophy=0, FrostSeal=0, FrostReserve=0, FirstForgeKit=0, WelcomeSeen=0 }
  for index in ipairs(C.Zones) do
   profile["CaveNodes" .. index] = 0
   profile[C.oreKey(index)] = 0
@@ -42,7 +49,7 @@ local function fresh()
  return profile
 end
 local function capacity(d)
- return C.Bags[d.Bag].Capacity + d.Rebirths * 25
+ return C.Bags[d.Bag].Capacity + d.Rebirths * 25 + d.FrostSeal * C.FrostSeal.ExtraCapacity
 end
 local function clearOre(d)
  d.Crystals = 0
@@ -56,8 +63,10 @@ local function validateOre(d)
   d[key] = math.min(d[key], remaining)
   remaining -= d[key]
  end
- d.SurveyorLantern = math.min(d.SurveyorLantern, 1)
- d.AmethystReserve = d.SurveyorLantern == 1 and 0 or math.min(d.AmethystReserve, C.SurveyorLantern.Cost)
+ for _, recipe in ipairs({C.SurveyorLantern, C.FrostSeal}) do
+  d[recipe.Owned] = math.min(d[recipe.Owned], 1)
+  d[recipe.Reserve] = d[recipe.Owned] == 1 and 0 or math.min(d[recipe.Reserve], recipe.Cost)
+ end
 end
 
 local function sync(p)
@@ -66,7 +75,9 @@ local function sync(p)
  p:SetAttribute("Capacity",capacity(d))
  local stats=p:FindFirstChild("leaderstats"); if stats then stats.Coins.Value=d.Coins; stats.Rebirths.Value=d.Rebirths end
 end
-local function notify(p,s,effect) remote:FireClient(p,s,effect) end
+local function notify(p, message, cue, soundCue)
+ remote:FireClient(p, message, cue, nil, nil, soundCue)
+end
 local function activeProfile(p)
  local d = profiles[p]
  local session = sessions[p]
@@ -102,13 +113,15 @@ end
 
 local function refreshPickaxe(p, d)
  local finish = C.Skins[d.Skin]
- if finish and finish.Premium and not Premium.owns(p, finish.Premium) then finish = nil end
+ if finish and ((finish.Premium and not Premium.owns(p, finish.Premium))
+  or (finish.Pass and not Premium.ownsPass(p, finish.Pass))) then finish = nil end
  Pickaxes.sync(p, C.Picks[d.Pick], d.Pick, finish)
 end
 
 local function refreshLook(p, character, d)
  local aura = C.Auras[d.Aura]
- if aura and aura.Premium and not Premium.owns(p, aura.Premium) then aura = nil end
+ if aura and ((aura.Premium and not Premium.owns(p, aura.Premium))
+  or (aura.Pass and not Premium.ownsPass(p, aura.Pass))) then aura = nil end
  local root = character and character:FindFirstChild("HumanoidRootPart")
  if root then
   World.playerStyle(root, C.Pets[d.Pet], aura)
@@ -147,6 +160,10 @@ local function add(p)
  local d=fresh(); if type(data)=="table" then for k,v in pairs(d) do if type(data[k])=="number" and data[k]>=0 and data[k]<1e12 then d[k]=math.floor(data[k]) end end end
  d.Pick=math.clamp(d.Pick,1,#C.Picks); d.Zone=math.clamp(d.Zone,1,#C.Zones); d.Pet=math.clamp(d.Pet,0,#C.Pets)
  validateOre(d)
+ if d.WelcomeSeen > 0 or d.Orders > 0 or d.OrderZone > 0 or d.Pick > 1 or d.Zone > 1 or d.Rebirths > 0 then
+  d.WelcomeSeen = 1
+ end
+ if d.Pick >= 2 or d.Rebirths > 0 then d.FirstForgeKit = 1 end
  -- Older saves only recorded the equipped pet.
  if d.Pet > 0 then d.PetsOwned = bit32.bor(d.PetsOwned, bit32.lshift(1, d.Pet - 1)) end
  for _, crate in ipairs(C.Crates) do
@@ -158,7 +175,7 @@ local function add(p)
   d[key] = bit32.band(d[key], ownedMask)
   local selected = d[crate.Equipped]
   local item = C[crate.Pool][selected]
-  if not item or (not item.Premium and not C.owns(d[key], selected)) then d[crate.Equipped] = 0 end
+  if not item or (not item.Premium and not item.Pass and not C.owns(d[key], selected)) then d[crate.Equipped] = 0 end
  end
  for index, mastery in ipairs(C.CaveMastery) do
   local key = "CaveNodes" .. index
@@ -208,6 +225,15 @@ local function add(p)
   if skin and skin.Premium then refreshPickaxe(p, d) end
   if aura and aura.Premium then refreshLook(p, p.Character, d) end
  end)
+ for index in ipairs(C.GamePasses) do
+  p:GetAttributeChangedSignal("PassOwned" .. index):Connect(function()
+   if profiles[p] ~= d then return end
+   local skin, aura = C.Skins[d.Skin], C.Auras[d.Aura]
+   if skin and skin.Pass == index then refreshPickaxe(p, d) end
+   if aura and aura.Pass == index then refreshLook(p, p.Character, d) end
+  end)
+ end
+ Premium.loadPasses(p, C.GamePasses)
  task.spawn(Premium.load, p)
  if not record then task.delay(3,function() if p.Parent == Players then notify(p,"Studio test: saving disabled") end end) end
 end
@@ -217,7 +243,8 @@ local function part(name,size,pos,color,parent)
 end
 local function label(p,txt)
  local g=Instance.new("BillboardGui"); g.Size=UDim2.fromOffset(168,48); g.StudsOffset=Vector3.new(0,4,0); g.AlwaysOnTop=false; g.MaxDistance=38; g.Parent=p
- local t=Instance.new("TextLabel"); t.Size=UDim2.fromScale(1,1); t.BackgroundTransparency=1; t.Text=txt; t.TextColor3=Color3.new(1,1,1); t.TextStrokeTransparency=.2; t.TextScaled=true; t.Font=Enum.Font.GothamBold; t.Parent=g
+ CollectionService:AddTag(g, "MiningWorldLabel")
+ local t=Instance.new("TextLabel"); t.Size=UDim2.fromScale(1,1); t.BackgroundTransparency=1; t.Text=txt; t.TextColor3=Color3.new(1,1,1); t.TextStrokeTransparency=.2; t.TextScaled=true; t.Font=Enum.Font.SourceSansBold; t.Parent=g
  local textSize = Instance.new("UITextSizeConstraint")
  textSize.MinTextSize = 10
  textSize.MaxTextSize = 16
@@ -249,6 +276,13 @@ local function prompt(a,txt,fn,requiresSight)
  end)
  return q
 end
+local function claimSwing(p, pick)
+ local now = os.clock()
+ if now - (last[p] or -math.huge) < pick.SwingCooldown then return false end
+ last[p] = now
+ return true
+end
+
 local function sell(p, anchor)
  local d = profiles[p]
  if d.Crystals == 0 then notify(p, "Your bag is empty!"); return end
@@ -348,37 +382,43 @@ local function appraiseGeode(p, anchor)
  notify(p, sample.Name .. " • +" .. sample.Coins .. " coins" .. detail, "reward")
 end
 
-local function craftLantern(p, anchor)
+local function craftGear(p, anchor, recipe)
  local d = profiles[p]
- local recipe = C.SurveyorLantern
- if d.SurveyorLantern == 1 then
-  notify(p, "Your Surveyor’s Lantern is equipped. Watch for nearby rich-vein markers.")
+ if d[recipe.Owned] == 1 then
+  notify(p, recipe.Name .. " is equipped. " .. recipe.Benefit)
+  return
+ end
+ if d.Zone < recipe.Zone then
+  notify(p, "Unlock " .. C.Zones[recipe.Zone].Name .. " to find the ore for this recipe.")
   return
  end
 
+ local oreType = C.Zones[recipe.Zone].Ore
  local key = C.oreKey(recipe.Zone)
- local needed = recipe.Cost - d.AmethystReserve
+ local needed = recipe.Cost - d[recipe.Reserve]
  local moved = math.min(needed, d[key])
  if moved == 0 and needed > 0 then
-  notify(p, "Surveyor’s Lantern • " .. d.AmethystReserve .. "/" .. recipe.Cost .. " Amethyst set aside")
+  notify(p, recipe.Name .. " • " .. d[recipe.Reserve] .. "/" .. recipe.Cost .. " " .. oreType .. " set aside")
   return
  end
  d[key] -= moved
  d.Crystals -= moved
- d.AmethystReserve += moved
- if d.AmethystReserve < recipe.Cost then
+ d[recipe.Reserve] += moved
+ if d[recipe.Reserve] < recipe.Cost then
   sync(p)
-  notify(p, "Set aside " .. moved .. " Amethyst • " .. d.AmethystReserve .. "/" .. recipe.Cost, "accept")
+  notify(p, "Set aside " .. moved .. " " .. oreType .. " • " .. d[recipe.Reserve] .. "/" .. recipe.Cost, "accept")
   return
  end
 
- d.SurveyorLantern = 1
- d.AmethystReserve = 0
+ d[recipe.Owned] = 1
+ d[recipe.Reserve] = 0
  sync(p)
- local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
- if root then World.surveyorLantern(root) end
+ if recipe == C.SurveyorLantern then
+  local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+  if root then World.surveyorLantern(root) end
+ end
  World.celebrate(anchor, 34)
- notify(p, "Surveyor’s Lantern crafted! Nearby rich veins are marked.", "reward")
+ notify(p, recipe.Name .. " crafted! " .. recipe.Benefit, "craft")
 end
 
 local function buyBag(p, anchor)
@@ -416,7 +456,24 @@ local function commissions(p, anchor)
  World.celebrate(anchor, 30)
  notify(p, name .. " completed • +" .. reward .. " coins", "reward")
 end
-local function upgrade(p, anchor) local d=profiles[p]; local nextPick=C.Picks[d.Pick+1]; if not nextPick then notify(p,"Max pickaxe!"); return end; if d.Coins<nextPick.Cost then notify(p,"Need "..nextPick.Cost.." coins"); return end; d.Coins-=nextPick.Cost; d.Pick+=1; sync(p); refreshPickaxe(p, d); World.celebrate(anchor, 18); notify(p,"Forged "..nextPick.Name.." Pickaxe", "buy") end
+local function upgrade(p, anchor)
+ local d = profiles[p]
+ local nextPick = C.Picks[d.Pick + 1]
+ if not nextPick then notify(p, "Max pickaxe!"); return end
+ if d.Coins < nextPick.Cost then notify(p, "Need " .. nextPick.Cost .. " coins"); return end
+ d.Coins -= nextPick.Cost
+ d.Pick += 1
+ local first = d.Pick == 2 and d.FirstForgeKit == 0
+ if first then
+  d.FirstForgeKit = 1
+  d.Coins += C.FirstForgeReward
+ end
+ sync(p)
+ refreshPickaxe(p, d)
+ World.celebrate(anchor, first and 30 or 18)
+ notify(p, "Forged " .. nextPick.Name .. " Pickaxe" .. (first and (" • First Forge Kit: +" .. C.FirstForgeReward .. " coins") or ""),
+  "forge")
+end
 local function applyCollection(p, d, crate)
  if crate.Equipped == "Skin" then
   refreshPickaxe(p, d)
@@ -476,6 +533,8 @@ equipRemote.OnServerEvent:Connect(function(p, group, index)
  local item = C[crate.Pool][index]
  if item and item.Premium then
   if not Premium.owns(p, item.Premium) then return end
+ elseif item and item.Pass then
+  if not Premium.ownsPass(p, item.Pass) then return end
  elseif index ~= 0 and not C.owns(d[crate.Pool .. "Owned"], index) then
   return
  end
@@ -487,19 +546,39 @@ equipRemote.OnServerEvent:Connect(function(p, group, index)
  sync(p)
 end)
 premiumRemote.OnServerEvent:Connect(function(p, action, index)
- if not activeProfile(p) or premiumBusy[p] then return end
+ if not activeProfile(p) or premiumBusy[p] or typeof(index) ~= "number" or index % 1 ~= 0 then return end
  local now = os.clock()
  if now - (lastPremium[p] or -math.huge) < 1 then return end
- if action == "TopUp" and typeof(index) == "number" and index % 1 == 0 then
+ if action == "TopUp" then
   local product = C.StarshardProducts[index]
   if not product then return end
   lastPremium[p] = now
+  if not C.StarshardSalesEnabled then
+   notify(p, "Starshards (in development)")
+   return
+  end
   local ok, shown = pcall(Premium.prompt, p, product)
   if not ok or not shown then notify(p, "Robux top-ups are unavailable.") end
- elseif action == "Open" and typeof(index) == "number" and index % 1 == 0 then
+ elseif action == "Pass" then
+  local pass = C.GamePasses[index]
+  if not pass then return end
+  lastPremium[p] = now
+  if not C.GamePassSalesEnabled then
+   notify(p, pass.Name .. " (in development)")
+   return
+  end
+  premiumBusy[p] = true
+  local ok, shown, message = pcall(Premium.promptPass, p, index, pass)
+  premiumBusy[p] = nil
+  if p.Parent == Players and (not ok or not shown) then notify(p, message or "Could not open the pass purchase.") end
+ elseif action == "Open" then
   local crate = C.PremiumCrates[index]
   if not crate then return end
   lastPremium[p] = now
+  if not C.StarshardSalesEnabled then
+   notify(p, crate.Name .. " (in development)")
+   return
+  end
   premiumBusy[p] = true
   local success, message = Premium.buyCrate(p, index, crate)
   premiumBusy[p] = nil
@@ -512,16 +591,34 @@ premiumRemote.OnServerEvent:Connect(function(p, action, index)
  end
 end)
 
-local function rebirth(p) local d=profiles[p]; local cost=3000*(d.Rebirths+1); if d.Coins<cost then notify(p,"Need "..cost.." coins"); return end; d.Coins=0; clearOre(d); clearVeinChain(p); d.Pick=1; d.Zone=1; d.Rebirths+=1; sync(p); refreshPickaxe(p, d); local root=p.Character and p.Character:FindFirstChild("HumanoidRootPart"); if root then root.CFrame=CFrame.new(0,5,0) end; notify(p,"Rebirth complete! Permanent sell multiplier increased.", "reward") end
-local stations={{"Sell Crystals",Vector3.new(-20,2,0),Color3.fromRGB(255,190,50),sell},{"Pickaxe Forge",Vector3.new(20,2,0),Color3.fromRGB(80,160,255),upgrade},{"Rebirth",Vector3.new(20,2,15),Color3.fromRGB(170,100,255),rebirth},
- {"Guild Commissions",Vector3.new(-34,2,8),Color3.fromRGB(68,178,159),commissions},
- {"Bag Outfitters",Vector3.new(34,2,8),Color3.fromRGB(217,130,74),buyBag}}
+local function rebirth(p)
+ local d = profiles[p]
+ local cost = 3000 * (d.Rebirths + 1)
+ if d.Coins < cost then notify(p, "Need " .. cost .. " coins"); return end
+ d.Coins, d.Pick, d.Zone = 0, 1, 1
+ d.OrderZone, d.OrderNodes, d.OrderCrystals, d.GuidedOrder = 0, 0, 0, 0
+ d.Rebirths += 1
+ clearOre(d)
+ clearVeinChain(p)
+ sync(p)
+ refreshPickaxe(p, d)
+ local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+ if root then root.CFrame = CFrame.new(0, 5, 0) end
+ notify(p, "Rebirth complete! Permanent sell multiplier increased.", "reward")
+end
+local stations = {
+ {"Sell Crystals", Vector3.new(-33, 2, 5), Color3.fromRGB(255,190,50), sell},
+ {"Pickaxe Forge", Vector3.new(-53, 2, 7), Color3.fromRGB(80,160,255), upgrade},
+ {"Guild Commissions", Vector3.new(-53, 2, 24), Color3.fromRGB(68,178,159), commissions},
+ {"Bag Outfitters", Vector3.new(-33, 2, 25), Color3.fromRGB(211,112,78), buyBag},
+ {"Rebirth", Vector3.new(55, 2, 56), Color3.fromRGB(170,100,255), rebirth},
+}
 for _, station in ipairs(stations) do
  local name, position, color, action = table.unpack(station)
  local anchor = part(name, Vector3.new(9,4,9), position, color)
  local promptText = "Interact"
  if action == upgrade then
-  World.forge(world, anchor, C.Picks)
+  World.forge(world, anchor, C.Picks, color)
   promptText = "Forge next pickaxe"
  elseif action == commissions or action == buyBag then
   World.kiosk(world, anchor, color, action == commissions)
@@ -529,27 +626,25 @@ for _, station in ipairs(stations) do
  else
   World.station(world, anchor, color)
  end
- label(anchor, name)
+ if action ~= sell and action ~= upgrade and action ~= commissions then World.marketSign(world, anchor, name) end
  prompt(anchor, promptText, function(p) action(p, anchor) end)
 end
 local crateColors = {Color3.fromRGB(227,129,174), Color3.fromRGB(90,178,212), Color3.fromRGB(166,130,229)}
 for group, crate in ipairs(C.Crates) do
  local color = crateColors[group]
- local anchor = part(crate.Name, Vector3.new(6,3,5), Vector3.new((group - 2) * 11,2,23), color)
+ local anchor = part(crate.Name, Vector3.new(6,3,5), Vector3.new(25 + (group - 1) * 16, 2, 27), color)
  World.crateStand(world, anchor, color)
- label(anchor, crate.Name .. " • " .. crate.Cost .. " coins")
+ World.marketCanopy(world, anchor, 6.3, color)
+ World.marketSign(world, anchor, crate.Name, crate.Cost .. " coins")
  prompt(anchor, "Open crate", function(p) openCrate(p, anchor, crate) end)
 end
 
 local function setupResonance(mine, x, color)
  local event = C.Resonance
  local chamber = World.resonance(mine, x, color)
- local status = label(chamber.Status, "")
- local entrance = part("Expedition Notice", Vector3.new(1, 1, 1), Vector3.new(x + 5, 2, -4), color, mine)
- entrance.CanCollide = false
- entrance.CanQuery = false
- entrance.Transparency = 1
- label(entrance, "Crystal Resonance\nFollow the three pulsing veins")
+ local status = chamber.Status
+ World.fieldSign(mine, "Expedition Notice", Vector3.new(x + 11.5, 3.35, -4.4), 7.8,
+  "CRYSTAL RESONANCE", "Follow the three pulsing veins")
  local cachePrompt
  local cycle, lit = 0, 0
  local active, started = false, false
@@ -557,9 +652,9 @@ local function setupResonance(mine, x, color)
 
  local function showProgress()
   if active then
-   status.Text = "Echo Chamber open\nExtract the deposit inside"
+   status.Text = "Chamber open • extract the deposit"
   else
-   status.Text = "Crystal Resonance • " .. lit .. "/" .. #chamber.Veins .. "\nMine the three pulsing veins"
+   status.Text = lit .. "/" .. #chamber.Veins .. " tuned • follow the pulsing veins"
   end
  end
 
@@ -582,9 +677,8 @@ local function setupResonance(mine, x, color)
   vein.Prompt = prompt(vein.Anchor, "Mine resonant vein", function(p)
    local d = profiles[p]
    if d.Zone < event.Zone or active or vein.Health <= 0 or not clearShot(p, vein.Anchor) then return end
-   local now = os.clock()
-   if now - (last[p] or -math.huge) < .35 then return end
-   last[p] = now
+   local pick = C.Picks[d.Pick]
+   if not claimSwing(p, pick) then return end
    contributed[p] = true
    if not started then
     started = true
@@ -595,7 +689,7 @@ local function setupResonance(mine, x, color)
    end
 
    Pickaxes.swing(p)
-   vein.Health -= C.Picks[d.Pick].Power
+   vein.Health -= pick.Power
    vein.Sparks:Emit(vein.Health <= 0 and 18 or 7)
    if vein.Health > 0 then
     notify(p, "Resonant vein • " .. vein.Health .. " HP", "hit")
@@ -666,7 +760,7 @@ end
 local function setupWhiteout(zone, x)
  local relay = C.Whiteout
  local shelter, beacons = World.whiteout(zone, x, relay.Route)
- label(shelter, "Whiteout Relay\nStart at the shelter")
+ World.stationSign(shelter, "Whiteout Relay", "Start at the shelter")
  prompt(shelter, "Start Whiteout Relay", function(p)
   if profiles[p].Zone < relay.Zone then return end
   local now = workspace:GetServerTimeNow()
@@ -692,7 +786,7 @@ local function setupWhiteout(zone, x)
 
  for index, beacon in ipairs(beacons) do
   local stop = relay.Route[index]
-  label(beacon.Anchor, stop.Name)
+  World.stationSign(beacon.Anchor, stop.Name)
   prompt(beacon.Anchor, "Signal beacon", function(p)
    local run = relayRuns[p]
    local now = workspace:GetServerTimeNow()
@@ -737,7 +831,7 @@ local function setupTidekeeper(zone, x)
  for _, dial in ipairs(puzzle.Dials) do
   carving[#carving + 1] = string.gsub(dial.Name, " Dial$", "") .. ": " .. puzzle.Symbols[dial.Answer]
  end
- label(altar, "Tidekeeper Carving\n" .. table.concat(carving, "  •  "))
+ World.stationSign(altar, "Tidekeeper Carving", table.concat(carving, "  •  "))
  prompt(altar, "Read / offer dial settings", function(p)
   local d = profiles[p]
   if d.Zone < puzzle.Zone then return end
@@ -774,7 +868,7 @@ local function setupTidekeeper(zone, x)
  end, true)
 
  for index, anchor in ipairs(stations) do
-  label(anchor, puzzle.Dials[index].Name)
+  World.stationSign(anchor, puzzle.Dials[index].Name)
   prompt(anchor, "Rotate dial", function(p)
    local d = profiles[p]
    if d.Zone < puzzle.Zone or C.owns(d.AurasOwned, puzzle.Aura) then return end
@@ -794,7 +888,7 @@ end
 local function setupEmberheart(zone, x)
  local trial = C.Emberheart
  local anvil, sparks = World.emberheart(zone, x)
- label(anvil, "Emberheart Tempering\nStrike inside the highlighted heat band")
+ World.stationSign(anvil, "Emberheart Tempering", "Strike in the highlighted band")
  prompt(anvil, "Start / strike anvil", function(p)
   local d = profiles[p]
   if d.Zone < trial.Zone then return end
@@ -861,9 +955,10 @@ local function setupCavernLift(surface, deep)
   local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
   if not root then return end
   root.CFrame = CFrame.new(target.Position + Vector3.new(0, 4.5, 0))
+  notify(p, nil, "travel")
  end
 
- label(surface, "Deep Gallery Lift\nDiscover the lower station to unlock")
+ World.stationSign(surface, "Deep Gallery Lift", "Reach the lower station first")
  prompt(surface, "Descend to Deep Gallery", function(p)
   local d = profiles[p]
   if d.Zone < C.Resonance.Zone then return end
@@ -873,7 +968,7 @@ local function setupCavernLift(surface, deep)
   end
   lift(p, deep)
  end, true)
- label(deep, "Deep Gallery Lift\nShortcut to the mine entrance")
+ World.stationSign(deep, "Deep Gallery Lift", "Shortcut to the mine entrance")
  prompt(deep, "Unlock / ride to entrance", function(p)
   local d = profiles[p]
   if d.Zone < C.Resonance.Zone then return end
@@ -887,36 +982,51 @@ local function setupCavernLift(surface, deep)
  end, true)
 end
 
-local appraiser = part("Geode Appraiser", Vector3.new(7, 2.8, 3.4), Vector3.new(-29, 1.9, 26),
+local appraiser = part("Geode Appraiser", Vector3.new(7, 2.8, 3.4), Vector3.new(-52, 1.9, 42),
  Color3.fromRGB(102, 135, 123))
 World.geodeStand(world, appraiser, C.Zones)
-label(appraiser, "Geode Appraiser\nBring a geode from any mine")
+World.marketSign(world, appraiser, "Geode Appraiser", "Bring a geode from any mine")
 prompt(appraiser, "Appraise a geode", function(p) appraiseGeode(p, appraiser) end, true)
 
-local compassStand = part("Geode Compass", Vector3.new(4.2, 2.2, 2.5), Vector3.new(-37, 1.65, 33),
+local compassStand = part("Geode Compass", Vector3.new(4.2, 2.2, 2.5), Vector3.new(43, 1.65, 41),
  Color3.fromRGB(124, 113, 91))
 World.compassStand(world, compassStand)
-label(compassStand, "Geode Compass • " .. C.GeodeCompass.Cost .. " coins\nLonger vein-chain timer")
+World.marketCanopy(world, compassStand, 5.4, Color3.fromRGB(177, 115, 61))
+World.marketSign(world, compassStand, "Geode Compass", C.GeodeCompass.Cost .. " coins • longer chain timer")
 prompt(compassStand, "Buy Geode Compass", function(p) buyCompass(p, compassStand) end, true)
 
-local workbench = part("Surveyor’s Workbench", Vector3.new(6.3, 2.7, 3.2), Vector3.new(34, 1.85, -1.5),
+local workbench = part("Surveyor’s Workbench", Vector3.new(6.3, 2.7, 3.2), Vector3.new(-33, 1.85, 42),
  Color3.fromRGB(166, 117, 205))
 World.surveyorWorkbench(world, workbench)
-label(workbench, "Surveyor’s Workbench\nLantern • " .. C.SurveyorLantern.Cost .. " Amethyst")
-prompt(workbench, "Set aside Amethyst / craft", function(p) craftLantern(p, workbench) end, true)
+World.marketSign(world, workbench, "Surveyor’s Workbench", C.SurveyorLantern.Cost .. " Amethyst")
+prompt(workbench, "Set aside Amethyst / craft", function(p) craftGear(p, workbench, C.SurveyorLantern) end, true)
 
-local ledger = part("Cave Ledger", Vector3.new(5, 3.4, 2.5), Vector3.new(8.5, 2.2, 31), Color3.fromRGB(106, 148, 169))
+local frostBench = part("Frost Seal Press", Vector3.new(5.4, 2.5, 3), Vector3.new(-18, 1.82, 46),
+ Color3.fromRGB(117, 164, 193))
+World.frostPress(world, frostBench)
+World.marketCanopy(world, frostBench, 6.3, Color3.fromRGB(109, 182, 221))
+World.marketSign(world, frostBench, "Frost Seal Press", C.FrostSeal.Cost .. " Frost Ore • +35 capacity")
+prompt(frostBench, "Set aside Frost Ore / craft", function(p) craftGear(p, frostBench, C.FrostSeal) end, true)
+
+local gallery = part("Style Gallery", Vector3.new(5, 2.5, 3), Vector3.new(41, 1.76, 11),
+ Color3.fromRGB(124, 115, 162))
+World.styleGallery(world, gallery, C.Skins)
+World.marketCanopy(world, gallery, 6.8, Color3.fromRGB(111, 95, 147))
+World.marketSign(world, gallery, "Style Gallery", C.GamePassSalesEnabled and "Browse cosmetic passes" or "Gamepasses (in development)")
+prompt(gallery, "Browse styles", function(p) notify(p, nil, "passes") end, true)
+
+local ledger = part("Cave Ledger", Vector3.new(5, 3.4, 2.5), Vector3.new(-30, 2.2, 53), Color3.fromRGB(106, 148, 169))
 ledger.Material = Enum.Material.Slate
-label(ledger, "Cave Ledger\nMaster mines for permanent bonuses")
+World.marketSign(world, ledger, "Cave Ledger", "Permanent mastery bonuses")
 prompt(ledger, "Read cave progress", function(p)
  notify(p, nil, "caves")
 end, true)
 
-local display, revealHeartstone = World.heartstoneDisplay(world, Vector3.new(24, 1.7, 28))
-local trophyCaption = label(display, "Heartstone Trophy\nEarned in the Master Expedition")
+local display, revealHeartstone = World.heartstoneDisplay(world, Vector3.new(31, 1.7, 54))
+local trophyCaption = World.marketSign(world, display, "Heartstone Trophy", "Earned in the Master Expedition")
 local function showHeartstone(p)
  revealHeartstone()
- trophyCaption.Text = "Heartstone Trophy\nOn display from " .. p.DisplayName
+ trophyCaption.Text = "On display from " .. p.DisplayName
 end
 prompt(display, "Display your Heartstone trophy", function(p)
  if profiles[p].HeartstoneTrophy == 1 then
@@ -970,7 +1080,7 @@ local function setupMasterExpedition(mine, x)
   end
  end
 
- label(room.Entry, "Heartstone Descent\nAmethyst Master rank required")
+ World.stationSign(room.Entry, "Heartstone Descent", "Amethyst Master rank required")
  prompt(room.Entry, "Enter Master Expedition", function(p)
   if not eligible(profiles[p]) then notify(p, "Master Amethyst Cavern to open Heartstone Descent."); return end
   local now = workspace:GetServerTimeNow()
@@ -995,7 +1105,7 @@ local function setupMasterExpedition(mine, x)
 
  local function marks(anchors, deep)
   for index, anchor in ipairs(anchors) do
-   label(anchor, anchor.Name)
+   World.stationSign(anchor, anchor.Name)
    prompt(anchor, deep and "Extract heartstone seam" or "Log survey stake", function(p)
     local run = getRun(p)
     if not run or run.Deep ~= deep then return end
@@ -1016,7 +1126,7 @@ local function setupMasterExpedition(mine, x)
  marks(room.Survey, false)
  marks(room.Deep, true)
 
- label(room.Bank, "Bank the haul\nSafe payout • return to the gallery")
+ World.stationSign(room.Bank, "Bank the haul", "Safe payout • return to the gallery")
  prompt(room.Bank, "Bank haul", function(p)
   local run = getRun(p)
   if not run or run.Deep then return end
@@ -1033,7 +1143,7 @@ local function setupMasterExpedition(mine, x)
   notify(p, "Survey haul banked • +" .. reward .. " coins", "coins")
  end, true)
 
- label(room.Press, "Press on\nRisk the survey haul for Heartstone")
+ World.stationSign(room.Press, "Press on", "Risk the haul for Heartstone")
  prompt(room.Press, "Risk haul / descend", function(p)
   local run = getRun(p)
   if not run or run.Deep then return end
@@ -1058,7 +1168,7 @@ local function setupMasterExpedition(mine, x)
   end)
  end, true)
 
- label(room.Cache, "Heartstone Cache")
+ World.stationSign(room.Cache, "Heartstone Cache")
  prompt(room.Cache, "Claim Heartstone", function(p)
   local run = getRun(p)
   if not run or not run.Deep then return end
@@ -1077,7 +1187,7 @@ local function setupMasterExpedition(mine, x)
  end, true)
 
  for _, exit in ipairs(room.Exits) do
-  label(exit, exit.Name)
+  World.stationSign(exit, exit.Name)
   prompt(exit, "Exit expedition", function(p)
    local run = descentRuns[p]
    if run then finish(p, run, false) end
@@ -1107,6 +1217,22 @@ end
 
 World.welcome(world)
 World.meadowLandmarks(world)
+World.communityCorner(world)
+
+resident(world, "Pip", "Cartwright", Vector3.new(-23, .5, 17.6), -2.45, Color3.fromRGB(177, 102, 69),
+ Color3.fromRGB(237, 205, 129), function()
+  return {
+   "The commons table is for everyone. Set your bag down and tell us what you found in the mine.",
+   "I mend wheels near the sell stall. A miner brought me an ore cart with three wheels once. Called it an upgrade.",
+  }
+ end)
+resident(world, "Nell", "Neighbor", Vector3.new(53, .5, 15), -1.68, Color3.fromRGB(105, 132, 160),
+ Color3.fromRGB(238, 166, 121), function()
+  return {
+   "The flower boxes belong to the whole street. I water this side and Hollis does the park.",
+   "Walk past the wayshrines if you need a quiet spot. The ducks have claimed half the pond.",
+  }
+ end)
 resident(world, "Fern", "Trail Steward", Vector3.new(-9.3, .5, 3.3), .25, Color3.fromRGB(72, 127, 105),
  Color3.fromRGB(255, 194, 112), function(d)
   if d.Orders == 0 then
@@ -1120,7 +1246,7 @@ resident(world, "Fern", "Trail Steward", Vector3.new(-9.3, .5, 3.3), .25, Color3
    "The wayshrines light up the road out of Meadow. Amethyst Cavern is the first stop.",
   }
  end)
-resident(world, "Marlow", "Surveyor", Vector3.new(38.5, .5, -2), -1.15, Color3.fromRGB(115, 85, 147),
+resident(world, "Marlow", "Surveyor", Vector3.new(-25, .5, 38), -1.15, Color3.fromRGB(115, 85, 147),
  Color3.fromRGB(234, 179, 110), function(d)
   if d.SurveyorLantern == 1 then
    return {
@@ -1135,9 +1261,40 @@ resident(world, "Marlow", "Surveyor", Vector3.new(38.5, .5, -2), -1.15, Color3.f
  end)
 
 
+resident(world, "Hollis", "Groundskeeper", Vector3.new(21, .5, 90.7), -.34, Color3.fromRGB(79, 111, 80),
+ Color3.fromRGB(225, 184, 111), function()
+  return {
+   "The pond used to be a cart yard. The ducks moved in before I finished laying the path.",
+   "You can sit under the lookout roof. The mountains are especially nice when your bag isn’t full.",
+  }
+ end)
+
+local function travelPad(parent, name, title, position, tint, index, onTravel)
+ local pad = part(name, Vector3.new(8, 4, 8), position, tint, parent)
+ pad:SetAttribute("TravelDestination", index)
+ pad:SetAttribute("TravelTitle", title)
+ World.portal(parent, pad, tint)
+ local action = prompt(pad, "Travel", onTravel)
+ action.ObjectText = title
+ return pad
+end
+
+local function moveToDestination(p, pad, destination)
+ local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+ if not root then return end
+ World.travelPulse(pad)
+ root.CFrame = CFrame.new(destination)
+ root.AssemblyLinearVelocity, root.AssemblyAngularVelocity = Vector3.new(), Vector3.new()
+ notify(p, nil, "travel")
+end
+
 for i,z in ipairs(C.Zones) do
- local x=(i-1)*140
- local zone=World.zone(world,i,z,x)
+ local x = C.zoneCenter(i)
+ local zone = World.zone(world, i, z, x)
+ if i == 1 then
+  zone = World.starterMine(world)
+  x = C.StarterMineX
+ end
  local mine
  if i == C.Resonance.Zone then
   local surface, deep
@@ -1167,45 +1324,42 @@ for i,z in ipairs(C.Zones) do
   setupTidekeeper(zone, x)
  elseif i == C.Emberheart.Zone then
   setupEmberheart(zone, x)
- elseif i ~= C.Resonance.Zone then
+ elseif i ~= 1 and i ~= C.Resonance.Zone then
   local sign = part(z.Name .. " Sign", Vector3.new(12,3,2), Vector3.new(x,3,-36), z.Color, zone)
   label(sign,z.Name)
  end
- if i > 1 then
-  local gateX = (i - (#C.Zones + 2) / 2) * 22
-  local gate = part("Travel to " .. z.Name, Vector3.new(8, 4, 8), Vector3.new(gateX, 1, 38), z.Color)
-  World.portal(world, gate, z.Color)
-  label(gate, z.Name .. " • " .. z.Cost .. " coins")
-  prompt(gate, "Unlock / travel", function(p)
-   local d = profiles[p]
-   if d.Zone < i then
-    if d.Zone ~= i - 1 then
-     notify(p, "Unlock " .. C.Zones[i - 1].Name .. " first.")
-     return
-    end
-    if d.Coins < z.Cost then
-     notify(p, "Need " .. z.Cost .. " coins to unlock " .. z.Name .. ".")
-     return
-    end
-    d.Coins -= z.Cost
-    d.Zone = i
-    sync(p)
-   end
-   local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-   if root then root.CFrame = CFrame.new(x, 5, 0) end
-  end)
-
-  local back = part("Return to Meadow", Vector3.new(8, 3, 8), Vector3.new(x, 1, 10), Color3.fromRGB(255, 200, 80), zone)
-  World.portal(zone, back, back.Color)
-  label(back, "Return to Meadow")
-  prompt(back, "Travel", function(p)
-   local root = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-   if root then root.CFrame = CFrame.new(0, 5, 0) end
-  end)
+ local gateX = i == 1 and 0 or (i - (#C.Zones + 2) / 2) * 28
+ local gateZ = i == 1 and -11 or 72
+ local title = i == 1 and "Meadow Mine" or z.Name
+ local arrival = Vector3.new(x, 5, i == 1 and 12 or 0)
+ local gate
+ gate = travelPad(world, "Travel to " .. title, title, Vector3.new(gateX, 1, gateZ), z.Color, i, function(p)
+  local d = profiles[p]
+  if d.Zone < i then
+   local state, action = C.travelAvailability(i, d.Zone, d.Coins)
+   if action ~= "Unlock and travel" then notify(p, state); return end
+   d.Coins -= z.Cost
+   d.Zone = i
+   sync(p)
+  end
+  moveToDestination(p, gate, arrival)
+ end)
+ if i == 1 then
+  World.fieldSign(world, "Meadow Mine Portal Board", Vector3.new(0, 5.35, -11.4), 8.6,
+   "MEADOW MINE PORTAL", "Free • starter cave")
+ else
+  World.marketSign(world, gate, title, z.Cost .. " coins to unlock")
  end
 
+ local backZ = i == 1 and 23 or 10
+ local back
+ back = travelPad(zone, "Return to Meadow", "Meadow Hub", Vector3.new(x, 1, backZ), Color3.fromRGB(255, 200, 80),
+  0, function(p) moveToDestination(p, back, Vector3.new(0, 5, 0)) end)
+ World.fieldSign(zone, "Meadow Return Board", Vector3.new(x, 4.5, backZ + .5), 7.6,
+  "MEADOW HUB", "Free • return to town", math.pi)
+
  local landmark = World.landmark(zone, z, x, i)
- label(landmark, z.Landmark)
+ World.stationSign(landmark, z.Landmark)
  local discoveryBit = bit32.lshift(1, i - 1)
  prompt(landmark, "Survey", function(p)
   local d = profiles[p]
@@ -1232,8 +1386,10 @@ for i,z in ipairs(C.Zones) do
    end
   end
  else
+  local width = i == 1 and C.Meadow.MineWidthScale or 1
+  local depth = i == 1 and C.Meadow.MineDepthScale or 1
   for j = 1, 12 do
-   nodes[j] = { X = ((j - 1) % 6 - 2.5) * 13, Z = -14 - math.floor((j - 1) / 6) * 12, Ore = z }
+   nodes[j] = { X = ((j - 1) % 6 - 2.5) * 13 * width, Z = (-14 - math.floor((j - 1) / 6) * 12) * depth, Ore = z }
   end
  end
 
@@ -1271,6 +1427,9 @@ for i,z in ipairs(C.Zones) do
    return (rich and "Rich " or "") .. name .. "\n" .. hp .. " HP"
   end
   local hp = ore.Health
+  a:SetAttribute("OreTitle", name)
+  a:SetAttribute("OreMaxHealth", ore.Health)
+  a:SetAttribute("OreHealth", hp)
   local busy = false
   local caption = label(a, oreText(hp))
   caption.Parent.MaxDistance = 17
@@ -1278,16 +1437,13 @@ for i,z in ipairs(C.Zones) do
   local function strikeOre(p)
    local d = activeProfile(p)
    if not d or busy or d.Zone < i or not close(p, a, 14) then return end
-   local now = os.clock()
-   if now - (last[p] or 0) < .35 then return end
-
-   if not clearShot(p, a) then return end
-
-   last[p] = now
+   local pick = C.Picks[d.Pick]
+   if not clearShot(p, a) or not claimSwing(p, pick) then return end
    local cap = capacity(d)
    if d.Crystals >= cap then notify(p, "Bag full! Sell your crystals."); return end
    Pickaxes.swing(p)
-   hp -= C.Picks[d.Pick].Power
+   hp -= pick.Power
+   a:SetAttribute("OreHealth", math.max(0, hp))
    World.oreStrike(cluster, orePivot, glints, hp <= 0)
    if hp > 0 then
     caption.Text = oreText(hp)
@@ -1310,13 +1466,14 @@ for i,z in ipairs(C.Zones) do
     d.OrderNodes = math.min(target, d.OrderNodes + 1)
    end
    sync(p)
+   local breakCue = rich and "richBreak" or "break"
    if geodeEarned then
-    notify(p, z.Name .. " geode found! Bring it to the Meadow appraiser.", "reward")
+    notify(p, z.Name .. " geode found! Bring it to the Meadow appraiser.", "reward", breakCue)
    elseif newRank > previousRank then
     local title = newRank == 2 and "Master" or "Prospector"
-    notify(p, z.Name .. " • " .. title .. " • +" .. caveBonus .. " crystals per node here", "reward")
+    notify(p, z.Name .. " • " .. title .. " • +" .. caveBonus .. " crystals per node here", "reward", breakCue)
    else
-    notify(p, rich and ("Rich vein • +" .. (d.Crystals - before) .. " crystals") or nil, rich and "reward" or "break")
+    notify(p, rich and ("Rich vein • +" .. (d.Crystals - before) .. " crystals") or nil, breakCue)
    end
    busy = true
    minePrompt.Enabled = false
@@ -1325,7 +1482,7 @@ for i,z in ipairs(C.Zones) do
    CollectionService:RemoveTag(a, "MineableOre")
    caption.Visible = false
    CollectionService:RemoveTag(a, "SurveyorRichOre")
-   task.delay(3, function()
+   task.delay(z.OreRespawn, function()
     if not a:IsDescendantOf(workspace) then
      cluster:Destroy()
      return
@@ -1341,6 +1498,7 @@ for i,z in ipairs(C.Zones) do
      cluster:ScaleTo(scale)
     end
     hp = ore.Health
+    a:SetAttribute("OreHealth", hp)
     setRich(math.random(ore.RichEvery or 8) == 1)
     caption.Text = oreText(hp)
     caption.Visible = true
@@ -1356,6 +1514,38 @@ for i,z in ipairs(C.Zones) do
   minePrompt = prompt(a, "Mine", strikeOre, true)
  end
 end
+
+World.landscape(world)
+
+welcomeRemote.OnServerEvent:Connect(function(p)
+ local d = activeProfile(p)
+ if not d or d.WelcomeSeen == 1 then return end
+ d.WelcomeSeen = 1
+ p:SetAttribute("WelcomeSeen", 1)
+end)
+
+homeRemote.OnServerEvent:Connect(function(p)
+ if not activeProfile(p) then return end
+ local character = p.Character
+ local root = character and character:FindFirstChild("HumanoidRootPart")
+ local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+ if not root or not humanoid or humanoid.Health <= 0 then return end
+ local now = os.clock()
+ if now < (nextHome[p] or 0) then return end
+ nextHome[p] = now + 8
+ if relayRuns[p] or emberRuns[p] or descentRuns[p] then
+  notify(p, "Finish or exit your timed expedition before returning to Meadow.")
+  return
+ end
+ if math.abs(root.Position.X) <= C.Meadow.Width / 2 then
+  notify(p, "You are already in Meadow.")
+  return
+ end
+ root.CFrame = CFrame.new(0, 5, 0)
+ root.AssemblyLinearVelocity, root.AssemblyAngularVelocity = Vector3.new(), Vector3.new()
+ clearVeinChain(p)
+ notify(p, "Back in Meadow. Your ore is still in your bag.", "travel")
+end)
 
 mineRemote.OnServerEvent:Connect(function(p, target)
  if typeof(target) ~= "Instance" then return end
@@ -1379,6 +1569,9 @@ else
 end
 
 Premium.start(C.StarshardProducts)
+Premium.startPasses(C.GamePasses, function(p, pass)
+ notify(p, pass.Name .. " unlocked! Equip your finish and aura from the Crates tab.", "reward")
+end)
 local function remove(p)
  if loading[p] then loading[p].Cancelled = true end
  if departing[p] then return end
@@ -1386,7 +1579,7 @@ local function remove(p)
  if not profile then return end
  departing[p] = true
  profiles[p], sessions[p] = nil, nil
- last[p], lastEquip[p], conversations[p] = nil, nil, nil
+ last[p], lastEquip[p], conversations[p], nextHome[p] = nil, nil, nil, nil
  premiumBusy[p], lastPremium[p] = nil, nil
  relayRuns[p], tideRuns[p], emberRuns[p], veinChains[p] = nil, nil, nil, nil
  local descent = descentRuns[p]

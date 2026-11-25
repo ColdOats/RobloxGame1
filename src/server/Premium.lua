@@ -124,4 +124,62 @@ function Premium.start(products)
     end
 end
 
+local passIndexes = {}
+local purchaseConnection
+
+function Premium.ownsPass(player, index)
+    return player:GetAttribute("PassOwned" .. index) == true
+end
+
+function Premium.startPasses(passes, onPurchase)
+    passIndexes = {}
+    for index, pass in ipairs(passes) do
+        if pass.Id > 0 then
+            if passIndexes[pass.Id] then
+                warn("Duplicate game pass ID:", pass.Id)
+            else
+                passIndexes[pass.Id] = index
+            end
+        end
+    end
+    if purchaseConnection then purchaseConnection:Disconnect() end
+    purchaseConnection = MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, id, purchased)
+        local index = passIndexes[id]
+        if not purchased or not index or player.Parent ~= Players or Premium.ownsPass(player, index) then return end
+        player:SetAttribute("PassOwned" .. index, true)
+        onPurchase(player, passes[index])
+    end)
+end
+
+local function checkPass(player, index, pass)
+    if passIndexes[pass.Id] ~= index then return nil end
+    local ok, owned = pcall(function()
+        return MarketplaceService:UserOwnsGamePassAsync(player.UserId, pass.Id)
+    end)
+    if player.Parent ~= Players then return nil end
+    if Premium.ownsPass(player, index) then return true end
+    if not ok then
+        warn("Could not check game pass ownership:", owned)
+        return nil
+    end
+    player:SetAttribute("PassOwned" .. index, owned)
+    return owned
+end
+
+function Premium.loadPasses(player, passes)
+    for index, pass in ipairs(passes) do
+        if pass.Id > 0 then task.spawn(checkPass, player, index, pass) end
+    end
+end
+
+function Premium.promptPass(player, index, pass)
+    if passIndexes[pass.Id] ~= index then return false, "This pass is unavailable." end
+    local owned = player:GetAttribute("PassOwned" .. index)
+    if owned == nil then owned = checkPass(player, index, pass) end
+    if owned == nil then return false, "Could not check pass ownership. Try again." end
+    if owned then return false, "You already own this pass." end
+    MarketplaceService:PromptGamePassPurchase(player, pass.Id)
+    return true
+end
+
 return Premium

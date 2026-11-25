@@ -1,4 +1,6 @@
-# Crystal Mining Simulator — early alpha
+# Crystal Mining Simulator — pre-alpha
+
+The pre-alpha opens all five mines through earned-coin progression. The guild, equipment upgrades, coin crates, crafting, and expeditions are playable. Starshard top-ups, premium crates, and game passes are marked **(in development)** and their purchase actions are disabled.
 
 ## Build and play
 
@@ -14,19 +16,37 @@ Edit the scripts under `src/` and regenerate the Studio installer with `python3 
 
 Open the generated place file to play the latest build. For a manual install into an empty Studio place, remove the default Baseplate and SpawnLocation, then run the latest `InstallInStudio.lua` in the Studio Command Bar in Edit mode.
 
+## Travel between caves
+
+The free Meadow Mine teleporter is just past spawn, across from the market. The starter mine is a separate area. Four more cave teleporters sit on the Meadow promenade. Approach a pad to see its current status, price, or prerequisite. Every cave has a free **Meadow Hub** teleporter back to town. A cave unlock is a one-time purchase per rebirth.
+
+## Field Guide
+
+New players see a short, illustrated welcome on their first visit. **Start Mining** dismisses it and the trail marker leads to Guild Commissions. Open **Guide** directly from the journal header to revisit the basics. **Start** has illustrated steps for mining, selling, forging, and exploring. **Atlas** lists each region’s ore, activity, and unlock cost. Its **Return to Meadow** button keeps the player’s haul and is available outside timed expeditions. The **Display** page has sound and floating-name controls for the current session. Nearby ore shows a health card when its Mine prompt appears.
+
+The first Iron purchase grants a one-time 20-coin kit. In Frozen Peaks, collect 75 Frost Ore and set it aside at Meadow’s Frost Seal Press. The crafted seal permanently adds 35 bag capacity. Partial deposits and the finished seal carry through rebirths.
+
+## Sound and music
+
+Meadow, the starter mine, and the four later biomes each have an original chiptune theme with melody, bass, harmony, and percussion. The game plays the music from Roblox’s built-in sound samples and changes themes when players travel. Ore hits have a pick ring, and depleted nodes have a crack and a crystal shatter. Rich veins add a higher chime. **Guide → Display** has separate switches for music and effects.
+
 ## Commissions and market upgrades
+
+From spawn, take the left lane for Miners’ Services. The guild, sell counter, bag outfitter, forge, and geode appraiser are all on that side. The right lane leads to Market Shops for coin crates, the Style Gallery, and the Geode Compass.
 
 New players can follow the Meadow trail marker to Guild Commissions. The first order, First Haul, asks them to mine four nodes and sell eight crystals. The reward covers an Iron pickaxe, and the trail continues until Amethyst Cavern unlocks. The Orders tab tracks the assigned zone, required mined nodes or market sales, and the payout. The guild cycles through mining, selling, and mixed orders. Return to the guild to claim the reward and accept the next order.
 
-Bag Outfitters sells four capacity upgrades. Purchases carry through rebirths, and each rebirth still adds 25 capacity. Gold-outlined rich veins yield double the zone’s base crystal amount before pet bonuses and bag limits. Use the HUD Sound button to mute the mining and market cues.
+Bag Outfitters sells four capacity upgrades. Purchases carry through rebirths, and each rebirth adds 25 capacity. Rebirth clears active commissions so the guild can assign a new job in Meadow. Completed orders carry over. Gold-outlined rich veins yield double the zone’s base crystal amount before pet bonuses and bag limits.
 
 ## Ore and the Surveyor’s Lantern
 
-The **Bags** tab lists ore by cave. Sell the whole bag as usual, or visit the Surveyor’s Workbench beside the Meadow forge to set aside Amethyst. At 24 Amethyst, the workbench crafts a permanent lantern that marks nearby rich veins in every mine. Stored Amethyst and the crafted lantern carry through rebirth. Any ore from older saves is shown as Unsorted and can still be sold.
+Depleted ore takes 10 seconds to start regrowing in Meadow and up to 17 seconds in later mines. The Starter pickaxe needs 0.75 seconds between swings, and each upgrade shortens that wait. The **Tools** tab shows the power and swing time for each pickaxe.
+
+The **Bags** tab lists ore by cave. Sell the whole bag as usual, or visit the Surveyor’s Workbench in Miners’ Services to set aside Amethyst. At 24 Amethyst, the workbench crafts a permanent lantern that marks nearby rich veins in every mine. Stored Amethyst and the crafted lantern carry through rebirth. Any ore from older saves is shown as Unsorted and can still be sold.
 
 ## Vein chains and geodes
 
-Break three different ore nodes in one mine to uncover a geode. Each new node gives you 45 seconds to reach the next one. Take geodes to the Meadow appraiser for coins and a specimen from that mine. The **Caves** tab tracks geodes and specimens. Collect all five specimens to earn the Prismatic Fieldwork aura. The Geode Compass beside the appraiser costs 450 coins, adds 20 seconds per link, and stays with the player after rebirth.
+Break three different ore nodes in one mine to uncover a geode. Each new node gives you 45 seconds to reach the next one. Take geodes to the Meadow appraiser for coins and a specimen from that mine. The **Caves** tab tracks geodes and specimens. Collect all five specimens to earn the Prismatic Fieldwork aura. The Geode Compass in Market Shops costs 450 coins, adds 20 seconds per link, and stays with the player after rebirth.
 
 ## Cave Mastery
 
@@ -58,19 +78,25 @@ In Sunken Ruins, read the carving on the Tidekeeper Altar. Set the Reed, Arch, a
 
 Start at the Emberheart Anvil in Ember Forge. Strike when the gauge marker is inside the highlighted heat band. Complete Heat, Shape, and Quench within two minutes. Misses leave the current stage available to retry. The first clear grants 850 coins and the Emberheart Mantle aura, and later clears can improve the player’s saved personal best.
 
-## Starshards and premium crates
+## Starshards and premium crates (in development)
 
-In Studio, open **Crates → Premium** to view the Starshard wallet and each premium crate’s guaranteed reward. Starshards are issued only after Roblox confirms a Developer Product purchase. The earned-coin crates remain available separately.
+**Crates → Shards** previews the Starshard packs and premium crate rewards. The pre-alpha disables both top-ups and opening premium crates. Pet, pickaxe, and cosmetic crates in Meadow use earned coins.
 
-To enable Robux top-ups, create a **Developer Product** for each pack you want to sell under **Monetization → Developer Products** in the Roblox Creator Dashboard. Set each Robux price there and copy each unique product ID into the matching 100- or 250-Starshard entry in `StarshardProducts` in `src/shared/Config.lua` (or the installed `ReplicatedStorage.MiningConfig` ModuleScript). Publish the updated place. If you already sell the 100-Starshard product, keep its existing ID and amount in the first entry so pending receipts can still be fulfilled. An ID of zero keeps that pack disabled.
+For a later release, create a **Developer Product** for each pack in the Roblox Creator Dashboard. Configure the IDs in `StarshardProducts` and set `StarshardSalesEnabled` to true in `src/shared/Config.lua` or `ReplicatedStorage.MiningConfig` before publishing. Keep any previously sold product IDs and amounts so the game can fulfill pending receipts.
 
 Premium crates show the guaranteed cosmetic before spending. Meteor Etch adds gold inlays to the pickaxe head, and Dusk Comet adds a two-color particle trail. Neither changes mining stats.
 
 Test with a separate private experience and its own product ID. The server stores Starshard balances, crate entitlements, and processed receipt IDs together in a dedicated DataStore record so repeated deliveries and repeated crate clicks cannot grant the same purchase twice.
 
-## Publish a private early alpha
+## Game passes (in development)
 
-Open `dist/CrystalMiningSimulator.rbxl` in Roblox Studio. Use **File → Publish to Roblox As** and select a separate private test experience. Grant play access to your testers through Roblox. If you test persistence from **Studio**, enable **Studio Access to API Services** only for the test experience. The default build has Robux top-ups disabled until you configure product IDs there.
+Players can browse the **Trailblazer** and **Cavern Artist** passes at Meadow’s Style Gallery or under **Crates → Passes**. Each pass unlocks the listed pickaxe finish and aura permanently. Equip them from the Skins and Auras tabs. The journal shows a next objective from the first commission through the lantern and Crystal Resonance, including while the journal is folded.
+
+To sell a pass, create it for this experience under **Monetization → Passes** in Creator Dashboard and set its Robux price there. Copy each numeric ID into its matching `GamePasses` entry in `src/shared/Config.lua` or `ReplicatedStorage.MiningConfig` in Studio. Each pass needs its own ID. Passes are currently marked **(in development)**. When you are ready to sell them, set `GamePassSalesEnabled` to true and publish the updated place. The Robux price appears in Roblox’s confirmation prompt.
+
+## Publish a private pre-alpha
+
+Open `dist/CrystalMiningSimulator.rbxl` in Roblox Studio. Use **File → Publish to Roblox As** and select a separate private test experience. Grant play access to your testers through Roblox. If you test persistence from **Studio**, enable **Studio Access to API Services** only for the test experience. The default build keeps paid features in development even when Roblox IDs are configured.
 
 Before inviting testers, confirm the game opens and the Output window has no startup errors. Run one fresh player through spawn, sale, Iron, and the cavern unlock. The automated test covers the gameplay handlers and save flow with simulated Roblox services. Use Studio or a real Roblox client to check rendering, sound, click and touch input, device layout, and real DataStore access.
 

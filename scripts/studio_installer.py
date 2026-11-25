@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "InstallInStudio.lua"
 MOUNTS = (
     (("ReplicatedStorage", "MiningConfig"), "ModuleScript"),
+    (("ReplicatedStorage", "MiningAudio"), "ModuleScript"),
+    (("ReplicatedStorage", "BiomeView"), "ModuleScript"),
     (("ServerScriptService", "Pickaxes"), "ModuleScript"),
     (("ServerScriptService", "World"), "ModuleScript"),
     (("ServerScriptService", "Premium"), "ModuleScript"),

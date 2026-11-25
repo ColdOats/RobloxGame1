@@ -28,6 +28,11 @@ trap 'rm -f "$smoke"' EXIT
     cat src/shared/Config.lua
     printf '\nend)())\n'
     cat tests/client_setup.luau
+    for module in MiningAudio BiomeView; do
+        printf '\nregister("%s", services.ReplicatedStorage, (function()\n' "$module"
+        cat "src/client/$module.lua"
+        printf '\nend)())\n'
+    done
     printf '\n'
     cat src/client/Main.client.lua
     printf '\n'
